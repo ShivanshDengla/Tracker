@@ -63,6 +63,10 @@ export const SearchAddress = () => {
     }
   };
 
+  const handleClear = () => {
+    setSearchValue('');
+  };
+
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(searchValue);
@@ -85,7 +89,7 @@ export const SearchAddress = () => {
         onSubmit={handleSearch}
         className="flex flex-col gap-3 sm:flex-row sm:items-center bg-white border border-gray-200 shadow-sm rounded-2xl p-3 sm:p-4"
       >
-        <div className="flex flex-1 items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 focus-within:border-blue-500 focus-within:bg-white transition-all">
+        <div className="flex flex-1 items-center gap-3 rounded-xl border border-blue-500 bg-white px-3 py-2 focus-within:border-blue-500 focus-within:bg-white transition-all">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-600">
             <Wallet width={22} height={22} />
           </div>
@@ -107,13 +111,23 @@ export const SearchAddress = () => {
               readOnly={!isEditing}
             />
             <div className="absolute inset-y-0 right-0 flex items-center gap-2 pr-2">
-              <button
-                type="button"
-                onClick={handlePaste}
-                className="rounded-lg bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700 hover:bg-blue-200 transition-colors shadow-sm"
-              >
-                Paste
-              </button>
+              {searchValue ? (
+                <button
+                  type="button"
+                  onClick={handleClear}
+                  className="rounded-lg bg-red-100 px-3 py-1 text-sm font-medium text-red-700 hover:bg-red-200 transition-colors shadow-sm"
+                >
+                  Clear
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handlePaste}
+                  className="rounded-lg bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700 hover:bg-blue-200 transition-colors shadow-sm"
+                >
+                  Paste
+                </button>
+              )}
               {searchValue && (
                 <button
                   type="button"
@@ -127,13 +141,24 @@ export const SearchAddress = () => {
             </div>
           </div>
         </div>
-        <button
-          type="submit"
-          className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-blue-700 shadow-sm disabled:cursor-not-allowed disabled:bg-blue-200"
-          disabled={!isValidAddress}
-        >
-          Search
-        </button>
+        <div className="flex items-center gap-2">
+          {searchValue && (
+            <button
+              type="button"
+              onClick={handlePaste}
+              className="rounded-lg bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700 hover:bg-blue-200 transition-colors shadow-sm"
+            >
+              Paste
+            </button>
+          )}
+          <button
+            type="submit"
+            className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-blue-700 shadow-sm disabled:cursor-not-allowed disabled:bg-blue-200"
+            disabled={!isValidAddress}
+          >
+            Search
+          </button>
+        </div>
       </form>
       {!isValidAddress && searchValue && (
         <p className="mt-2 text-sm text-red-500">Enter a valid EVM address.</p>

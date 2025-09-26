@@ -38,18 +38,48 @@ const MIN_BALANCE_THRESHOLD = 0.000001; // Skip very small balances
 const MAX_TOKENS_PER_NETWORK = 20; // Limit tokens per network for performance
 const NETWORK_TIMEOUT = 5000; // 5 second timeout per network
 
+// Well-known token addresses and their metadata
+const WELL_KNOWN_TOKENS: Record<string, { symbol: string; name: string; iconUrl: string; address?: string }> = {
+  // Native tokens
+  'ETH': { symbol: 'ETH', name: 'Ethereum', iconUrl: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png' },
+  'WLD': { symbol: 'WLD', name: 'Worldcoin', iconUrl: 'https://assets.coingecko.com/coins/images/31079/large/worldcoin.jpeg' },
+  'MATIC': { symbol: 'MATIC', name: 'Polygon', iconUrl: 'https://assets.coingecko.com/coins/images/4713/large/matic-token-icon.png' },
+  
+  // ERC-20 tokens (by contract address)
+  '0xA0b86a33E6441b8c4C8C0d4B0cF4B4d4F4B4d4F4B': { symbol: 'USDC', name: 'USD Coin', iconUrl: 'https://assets.coingecko.com/coins/images/6319/large/USD_Coin_icon.png' },
+  '0xdAC17F958D2ee523a2206206994597C13D831ec7': { symbol: 'USDT', name: 'Tether USD', iconUrl: 'https://assets.coingecko.com/coins/images/325/large/Tether.png' },
+  '0x6B175474E89094C44Da98b954EedeAC495271d0F': { symbol: 'DAI', name: 'Dai Stablecoin', iconUrl: 'https://assets.coingecko.com/coins/images/9956/large/4943.png' },
+  '0x514910771AF9Ca656af840dff83E8264EcF986CA': { symbol: 'LINK', name: 'Chainlink', iconUrl: 'https://assets.coingecko.com/coins/images/877/large/chainlink-new-logo.png' },
+  '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984': { symbol: 'UNI', name: 'Uniswap', iconUrl: 'https://assets.coingecko.com/coins/images/12504/large/uniswap-uni.png' },
+  '0x7D1AfA7B718fb893dB30A3aBc0Cfc608AaCfeBB0': { symbol: 'MATIC', name: 'Polygon', iconUrl: 'https://assets.coingecko.com/coins/images/4713/large/matic-token-icon.png' },
+  '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599': { symbol: 'WBTC', name: 'Wrapped Bitcoin', iconUrl: 'https://assets.coingecko.com/coins/images/7598/large/wrapped_bitcoin_wbtc.png' },
+  '0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE': { symbol: 'SHIB', name: 'Shiba Inu', iconUrl: 'https://assets.coingecko.com/coins/images/11939/large/shiba.png' },
+  '0x4d224452801ACEd8B2F0aebE155379bb5D594381': { symbol: 'APE', name: 'ApeCoin', iconUrl: 'https://assets.coingecko.com/coins/images/24383/large/apecoin.jpg' },
+  '0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9': { symbol: 'AAVE', name: 'Aave', iconUrl: 'https://assets.coingecko.com/coins/images/12645/large/AAVE.png' },
+  '0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2': { symbol: 'MKR', name: 'Maker', iconUrl: 'https://assets.coingecko.com/coins/images/1364/large/Mark_Maker.png' },
+  '0x0F5D2fB29fb7d3CFeE444a200298f468908cC942': { symbol: 'MANA', name: 'Decentraland', iconUrl: 'https://assets.coingecko.com/coins/images/878/large/decentraland-mana.png' },
+  '0x3845badAde8e6dDD04FcF2C3b1c4C3C3C3C3C3C3': { symbol: 'SAND', name: 'The Sandbox', iconUrl: 'https://assets.coingecko.com/coins/images/12129/large/sandbox_logo.jpg' },
+  '0x15D4c048F83bd7e37d49eA4C83a07267Ec4203dA': { symbol: 'GALA', name: 'Gala', iconUrl: 'https://assets.coingecko.com/coins/images/12493/large/GALA-COINGECKO.png' },
+  '0x4E15361FD6b4BB609Fa63C81A2be19d873717870': { symbol: 'FTM', name: 'Fantom', iconUrl: 'https://assets.coingecko.com/coins/images/4001/large/Fantom_round.png' },
+  '0x6c6EE5e31d828De241282B9606C8e98Ea48526E2': { symbol: 'HOT', name: 'Holo', iconUrl: 'https://assets.coingecko.com/coins/images/3348/large/Holologo_Profile.png' },
+  '0x0bc529c00C6401aEF6D220BE8c6Ea1667F6Ad93e': { symbol: 'YFI', name: 'Yearn.finance', iconUrl: 'https://assets.coingecko.com/coins/images/11849/large/yfi-192x192.png' },
+  '0x0D8775F648430679A709E98d2b0Cb6250d2887EF': { symbol: 'BAT', name: 'Basic Attention Token', iconUrl: 'https://assets.coingecko.com/coins/images/677/large/basic-attention-token.png' },
+  '0x1985365e9f78359a9B6AD760e32412f4a445E862': { symbol: 'REP', name: 'Augur', iconUrl: 'https://assets.coingecko.com/coins/images/309/large/REP.png' },
+  '0xE41d2489571d322189246DaFA5ebDe1F4699F498': { symbol: 'ZRX', name: '0x Protocol', iconUrl: 'https://assets.coingecko.com/coins/images/863/large/0x.png' },
+};
+
 // Token icon providers (in order of preference)
 const TOKEN_ICON_PROVIDERS = [
-  // CoinGecko (most comprehensive)
-  (address: string) => `https://assets.coingecko.com/coins/images/${address}/large/${address}.png`,
-  // Alternative CoinGecko format
-  (address: string) => `https://assets.coingecko.com/coins/images/${address}/standard/${address}.png`,
-  // Tokens.build (free API)
+  // Tokens.build (free API - most reliable for unknown tokens)
   (address: string) => `https://tokens.build/icon/${address}.png`,
-  // Trust Wallet
+  // Trust Wallet (comprehensive collection)
   (address: string) => `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/${address}/logo.png`,
-  // 1inch
+  // 1inch (good coverage)
   (address: string) => `https://tokens.1inch.io/${address}.png`,
+  // Moralis (reliable CDN)
+  (address: string) => `https://cdn.moralis.io/eth/${address}.png`,
+  // Alchemy (backup)
+  (address: string) => `https://eth-mainnet.alchemyapi.io/v2/demo/${address}/logo.png`,
 ];
 
 // Network priority for faster networks first
@@ -74,6 +104,63 @@ const NETWORK_ICONS: Record<string, string> = {
 const HIDE_TOKEN_THRESHOLD = 0.5;
 
 const ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
+
+// Enhanced token icon component with fallback
+const TokenIcon = ({ address, symbol, size = 24, className = "" }: { 
+  address: string; 
+  symbol: string; 
+  size?: number; 
+  className?: string; 
+}) => {
+  const [currentProvider, setCurrentProvider] = useState(0);
+  const [imageError, setImageError] = useState(false);
+  
+  const iconUrl = useMemo(() => {
+    if (currentProvider === 0) {
+      // Try well-known tokens first
+      if (WELL_KNOWN_TOKENS[address]) return WELL_KNOWN_TOKENS[address].iconUrl;
+      if (WELL_KNOWN_TOKENS[symbol]) return WELL_KNOWN_TOKENS[symbol].iconUrl;
+    }
+    
+    // Try different providers
+    if (currentProvider < TOKEN_ICON_PROVIDERS.length) {
+      return TOKEN_ICON_PROVIDERS[currentProvider](address);
+    }
+    
+    return null;
+  }, [address, symbol, currentProvider]);
+
+  const handleImageError = useCallback(() => {
+    if (currentProvider < TOKEN_ICON_PROVIDERS.length - 1) {
+      setCurrentProvider(prev => prev + 1);
+      setImageError(false);
+    } else {
+      setImageError(true);
+    }
+  }, [currentProvider]);
+
+  if (imageError || !iconUrl) {
+    return (
+      <div 
+        className={`bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold ${className}`}
+        style={{ width: size, height: size, fontSize: size * 0.4 }}
+      >
+        {symbol.charAt(0)}
+      </div>
+    );
+  }
+
+  return (
+    <Image
+      src={iconUrl}
+      alt={`${symbol} logo`}
+      width={size}
+      height={size}
+      className={`rounded-full object-cover border border-gray-200 ${className}`}
+      onError={handleImageError}
+    />
+  );
+};
 
 const shortenAddress = (address: string, visibleChars = 4) => {
   if (!address || address.length <= visibleChars * 2 + 2) return address;
@@ -275,7 +362,7 @@ export const TokenList = () => {
     balanceCache.current.set(cacheKey, { nativeBalance, tokenBalances, timestamp: Date.now() });
   }, []);
 
-  // Generate token icon URL without API calls
+  // Generate token icon URL with fallback system
   const getTokenIconUrl = useCallback((address: string, symbol: string): string => {
     // Check cache first
     const cached = getCachedIcon(address);
@@ -283,31 +370,18 @@ export const TokenList = () => {
       return cached;
     }
 
-    // For well-known tokens, use direct CDN URLs
-    const wellKnownTokens: Record<string, string> = {
-      'USDC': 'https://assets.coingecko.com/coins/images/6319/large/USD_Coin_icon.png',
-      'USDT': 'https://assets.coingecko.com/coins/images/325/large/Tether.png',
-      'WETH': 'https://assets.coingecko.com/coins/images/2518/large/weth.png',
-      'DAI': 'https://assets.coingecko.com/coins/images/9956/large/Badge_Dai.png',
-      'WBTC': 'https://assets.coingecko.com/coins/images/7598/large/wrapped_bitcoin_wbtc.png',
-      'UNI': 'https://assets.coingecko.com/coins/images/12504/large/uniswap-uni.png',
-      'LINK': 'https://assets.coingecko.com/coins/images/877/large/chainlink-new-logo.png',
-      'AAVE': 'https://assets.coingecko.com/coins/images/12645/large/AAVE.png',
-      'CRV': 'https://assets.coingecko.com/coins/images/12124/large/Curve.png',
-      'COMP': 'https://assets.coingecko.com/coins/images/10775/large/COMP.png',
-      'MKR': 'https://assets.coingecko.com/coins/images/1364/large/Mark_Maker.png',
-      'SNX': 'https://assets.coingecko.com/coins/images/3406/large/SNX.png',
-      'YFI': 'https://assets.coingecko.com/coins/images/11849/large/yfi-192x192.png',
-      'SUSHI': 'https://assets.coingecko.com/coins/images/12271/large/512x512_Logo_no_chop.png',
-      '1INCH': 'https://assets.coingecko.com/coins/images/13469/large/1inch-token.png',
-      'BAL': 'https://assets.coingecko.com/coins/images/11683/large/Balancer.png',
-      'WLD': 'https://assets.coingecko.com/coins/images/31079/large/worldcoin.jpeg',
-    };
+    // Check well-known tokens by address first (most accurate)
+    if (WELL_KNOWN_TOKENS[address]) {
+      const tokenInfo = WELL_KNOWN_TOKENS[address];
+      setCachedIcon(address, tokenInfo.iconUrl);
+      return tokenInfo.iconUrl;
+    }
 
-    // Check for well-known tokens first
-    if (wellKnownTokens[symbol]) {
-      setCachedIcon(address, wellKnownTokens[symbol]);
-      return wellKnownTokens[symbol];
+    // Check well-known tokens by symbol for native tokens
+    if (WELL_KNOWN_TOKENS[symbol]) {
+      const tokenInfo = WELL_KNOWN_TOKENS[symbol];
+      setCachedIcon(address, tokenInfo.iconUrl);
+      return tokenInfo.iconUrl;
     }
 
     // For other tokens, try the first provider (most reliable)
@@ -315,6 +389,7 @@ export const TokenList = () => {
     setCachedIcon(address, iconUrl);
     return iconUrl;
   }, [getCachedIcon, setCachedIcon]);
+
 
   // Global price fetcher with caching
   const getGlobalPrice = useCallback(async (symbol: string, alchemy: Alchemy): Promise<number | undefined> => {
@@ -707,8 +782,8 @@ export const TokenList = () => {
         {categorizedTokens.mainTokens.length > 0 && (
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
             <div className="grid grid-cols-3 gap-4 px-4 py-3 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-600 uppercase tracking-wide">
-              <div>Asset / Amount</div>
-              <div>Price</div>
+              <div>Asset</div>
+              <div>Amount</div>
               <div>USD Value</div>
             </div>
             
@@ -718,50 +793,37 @@ export const TokenList = () => {
                 key={`${token.contractAddress}-${token.network}-${index}`}
                 className="grid grid-cols-3 gap-4 px-4 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors"
               >
-                {/* Asset / Amount Column */}
-                <div className="flex items-center space-x-3">
+                {/* Asset Column */}
+                <div className="flex items-center space-x-2">
                   <div className="relative">
-                    {token.logo ? (
-                      <Image
-                        src={token.logo}
-                        alt={`${token.symbol} logo`}
-                        width={32}
-                        height={32}
-                        className="rounded-full object-cover border border-gray-200"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                          const fallback = target.nextElementSibling as HTMLElement;
-                          if (fallback) fallback.style.display = 'flex';
-                        }}
-                      />
-                    ) : null}
-                    <div 
-                      className={`w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-xs ${token.logo ? 'hidden' : 'flex'}`}
-                    >
-                      {token.symbol.charAt(0)}
-                    </div>
+                    <TokenIcon 
+                      address={token.contractAddress || 'native'} 
+                      symbol={token.symbol} 
+                      size={24}
+                    />
                     {/* Chain Icon */}
-                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center text-xs border border-gray-200">
+                    <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-white rounded-full flex items-center justify-center text-xs border border-gray-200">
                       {NETWORK_ICONS[token.network] || '🔗'}
                     </div>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-800 truncate">{token.symbol}</p>
-                    <p className="text-xs text-gray-500 truncate">{token.amount}</p>
+                    <p className="text-xs font-medium text-gray-800 truncate">{token.symbol}</p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {token.price ? `$${token.price.toLocaleString(undefined, { maximumFractionDigits: 4 })}` : '—'}
+                    </p>
                   </div>
                 </div>
                 
-                {/* Price Column */}
+                {/* Amount Column */}
                 <div className="flex items-center">
-                  <p className="text-sm text-gray-600">
-                    {token.price ? `$${token.price.toLocaleString(undefined, { maximumFractionDigits: 4 })}` : '—'}
+                  <p className="text-xs text-gray-600">
+                    {token.amount}
                   </p>
                 </div>
                 
                 {/* USD Value Column */}
                 <div className="flex items-center">
-                  <p className="text-sm font-medium text-gray-800">
+                  <p className="text-xs font-medium text-gray-800">
                     {token.usdValue ?? '—'}
                   </p>
                 </div>
@@ -788,44 +850,31 @@ export const TokenList = () => {
                         key={`hidden-${token.contractAddress}-${token.network}-${index}`}
                         className="grid grid-cols-3 gap-4 px-4 py-2 border-b border-gray-50 last:border-b-0 hover:bg-gray-50 transition-colors"
                       >
-                        {/* Asset / Amount Column */}
+                        {/* Asset Column */}
                         <div className="flex items-center space-x-2">
                           <div className="relative">
-                            {token.logo ? (
-                              <Image
-                                src={token.logo}
-                                alt={`${token.symbol} logo`}
-                                width={24}
-                                height={24}
-                                className="rounded-full object-cover border border-gray-200"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.style.display = 'none';
-                                  const fallback = target.nextElementSibling as HTMLElement;
-                                  if (fallback) fallback.style.display = 'flex';
-                                }}
-                              />
-                            ) : null}
-                            <div 
-                              className={`w-6 h-6 bg-gradient-to-br from-gray-400 to-gray-500 rounded-full flex items-center justify-center text-white font-bold text-xs ${token.logo ? 'hidden' : 'flex'}`}
-                            >
-                              {token.symbol.charAt(0)}
-                            </div>
+                            <TokenIcon 
+                              address={token.contractAddress || 'native'} 
+                              symbol={token.symbol} 
+                              size={20}
+                            />
                             {/* Chain Icon */}
-                            <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-white rounded-full flex items-center justify-center text-xs border border-gray-200">
+                            <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-white rounded-full flex items-center justify-center text-xs border border-gray-200">
                               {NETWORK_ICONS[token.network] || '🔗'}
                             </div>
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="text-xs font-medium text-gray-600 truncate">{token.symbol}</p>
-                            <p className="text-xs text-gray-400 truncate">{token.amount}</p>
+                            <p className="text-xs text-gray-400 truncate">
+                              {token.price ? `$${token.price.toLocaleString(undefined, { maximumFractionDigits: 4 })}` : '—'}
+                            </p>
                           </div>
                         </div>
                         
-                        {/* Price Column */}
+                        {/* Amount Column */}
                         <div className="flex items-center">
                           <p className="text-xs text-gray-500">
-                            {token.price ? `$${token.price.toLocaleString(undefined, { maximumFractionDigits: 4 })}` : '—'}
+                            {token.amount}
                           </p>
                         </div>
                         
