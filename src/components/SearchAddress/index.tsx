@@ -26,7 +26,7 @@ export const SearchAddress = () => {
   const initialAddress = params.get('address') || '';
   const [searchValue, setSearchValue] = useState(initialAddress);
   const [copied, setCopied] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
+  // removed isEditing mode; keep input simple and always editable
 
   const debouncedValue = useDebounce(searchValue, 400);
 
@@ -77,95 +77,76 @@ export const SearchAddress = () => {
     }
   };
 
-  const displayValue = useMemo(() => {
-    if (!searchValue) return '';
-    if (!isValidAddress) return searchValue;
-    return `${searchValue.slice(0, 6)}…${searchValue.slice(-4)}`;
-  }, [isValidAddress, searchValue]);
+  // no masked display; show full value to avoid confusion
 
   return (
     <div className="w-full">
-      <form
-        onSubmit={handleSearch}
-        className="flex flex-col gap-3 sm:flex-row sm:items-center bg-white border border-gray-200 shadow-sm rounded-2xl p-3 sm:p-4"
-      >
-        <div className="flex flex-1 items-center gap-3 rounded-xl border border-blue-500 bg-white px-3 py-2 focus-within:border-blue-500 focus-within:bg-white transition-all">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-600">
-            <Wallet width={22} height={22} />
-          </div>
-          <div className="relative flex-1">
+      <form onSubmit={handleSearch} className="bg-white border border-gray-200 shadow-sm rounded-2xl p-4">
+        <label htmlFor="address" className="block text-xs font-semibold text-gray-600 mb-2">
+          Wallet address
+        </label>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex flex-1 items-center gap-3 rounded-xl border border-blue-500 bg-white px-3 py-2 focus-within:border-blue-600 transition-all">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+              <Wallet width={20} height={20} />
+            </div>
             <input
+              id="address"
               type="text"
-              value={isEditing ? searchValue : displayValue}
-              onFocus={() => setIsEditing(true)}
-              onBlur={() => setIsEditing(false)}
-              onChange={(e) => {
-                const value = e.target.value.replace(/\s/g, '');
-                setSearchValue(value);
-              }}
-              placeholder="Enter or paste any wallet address"
-              className="w-full border-none bg-transparent pl-3 pr-20 text-sm font-medium text-gray-800 placeholder:text-gray-400 focus:outline-none"
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value.replace(/\s/g, ''))}
+              placeholder="Enter or paste any EVM address (0x...)"
+              className="flex-1 border-none bg-transparent text-sm font-medium text-gray-800 placeholder:text-gray-400 focus:outline-none"
               spellCheck={false}
               autoCapitalize="none"
               autoCorrect="off"
-              readOnly={!isEditing}
             />
-            <div className="absolute inset-y-0 right-0 flex items-center gap-2 pr-2">
-              {searchValue ? (
-                <button
-                  type="button"
-                  onClick={handleClear}
-                  className="rounded-lg bg-red-100 px-3 py-1 text-sm font-medium text-red-700 hover:bg-red-200 transition-colors shadow-sm"
-                >
-                  Clear
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handlePaste}
-                  className="rounded-lg bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700 hover:bg-blue-200 transition-colors shadow-sm"
-                >
-                  Paste
-                </button>
-              )}
-              {searchValue && (
-                <button
-                  type="button"
-                  onClick={handleCopy}
-                  title="Copy address"
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:border-blue-200 hover:text-blue-500 transition-colors"
-                >
-                  <Copy width={18} height={18} />
-                </button>
-              )}
-            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {searchValue ? (
+              <button
+                type="button"
+                onClick={handleClear}
+                className="rounded-lg bg-red-100 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-200 transition-colors shadow-sm"
+              >
+                Clear
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handlePaste}
+                className="rounded-lg bg-blue-100 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-200 transition-colors shadow-sm"
+              >
+                Paste
+              </button>
+            )}
+            {searchValue && (
+              <button
+                type="button"
+                onClick={handleCopy}
+                title="Copy address"
+                className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:border-blue-200 hover:text-blue-500 transition-colors"
+              >
+                <Copy width={18} height={18} />
+              </button>
+            )}
+            <button
+              type="submit"
+              className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 shadow-sm disabled:cursor-not-allowed disabled:bg-blue-200"
+              disabled={!isValidAddress}
+            >
+              Search
+            </button>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {searchValue && (
-            <button
-              type="button"
-              onClick={handlePaste}
-              className="rounded-lg bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700 hover:bg-blue-200 transition-colors shadow-sm"
-            >
-              Paste
-            </button>
-          )}
-          <button
-            type="submit"
-            className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-blue-700 shadow-sm disabled:cursor-not-allowed disabled:bg-blue-200"
-            disabled={!isValidAddress}
-          >
-            Search
-          </button>
+        <div className="mt-2 min-h-[1.25rem]">
+          {!isValidAddress && searchValue ? (
+            <p className="text-xs text-red-500">Enter a valid EVM address.</p>
+          ) : copied && searchValue ? (
+            <p className="text-xs text-green-600">Address copied to clipboard!</p>
+          ) : null}
         </div>
       </form>
-      {!isValidAddress && searchValue && (
-        <p className="mt-2 text-sm text-red-500">Enter a valid EVM address.</p>
-      )}
-      {copied && searchValue && (
-        <p className="mt-2 text-sm text-green-600">Address copied to clipboard!</p>
-      )}
     </div>
   );
 };

@@ -118,21 +118,16 @@ const TokenIcon = ({ logo, symbol, size = 24, className = "" }: {
     const icon = TOKEN_ICONS[cleanSymbol];
     
     if (icon) {
-      console.log(`✅ Found local icon for ${symbol} -> ${cleanSymbol}: ${icon}`);
       return icon;
     }
-    
-    console.log(`❌ No local icon for ${symbol}`);
     return null;
   }, [logo, symbol]);
   
   const handleImageError = useCallback(() => {
-    console.log(`💥 TokenIcon: Image failed to load for ${symbol}, showing initial fallback`);
     setImageError(true);
   }, [symbol]);
   
   if (imageError || !iconUrl) {
-    console.log(`🔤 TokenIcon: Rendering initial fallback for ${symbol} with "${symbol.charAt(0)}" - logo:`, logo, 'error:', imageError);
     return (
       <div 
         className={`bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold ${className}`}
