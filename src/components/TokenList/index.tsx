@@ -1,8 +1,9 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
+import Image from 'next/image';
 import { useSession } from 'next-auth/react';
 import { formatUnits } from 'viem';
-import { Alchemy, Network } from 'alchemy-sdk';
+import { Alchemy, Network, type TokenAddressRequest } from 'alchemy-sdk';
 
 type PortfolioToken = {
   symbol: string;
@@ -10,6 +11,8 @@ type PortfolioToken = {
   amount: string; // formatted human-readable
   usdValue?: string; // formatted USD if price available
   network: string;
+  usdValueNumber?: number;
+  logo?: string | null;
 };
 
 type NetworkConfig = {
@@ -103,9 +106,9 @@ export const TokenList = () => {
   useEffect(() => {
     const run = async () => {
       if (!walletAddress) return;
-        const apiKey = process.env.NEXT_PUBLIC_ALCHEMY_API_KEY;
-        if (!apiKey) {
-          setError('Missing NEXT_PUBLIC_ALCHEMY_API_KEY. Add it to your environment.');
+      const apiKey = process.env.NEXT_PUBLIC_ALCHEMY_API_KEY;
+      if (!apiKey) {
+        setError('Missing NEXT_PUBLIC_ALCHEMY_API_KEY. Add it to your environment.');
         return;
       }
       setLoading(true);
@@ -121,25 +124,46 @@ export const TokenList = () => {
             network: config.network,
           });
 
-          // Native balance per network
+          let nativePrice: number | undefined;
+          try {
+            const symbolPrices = await alchemy.prices.getTokenPriceBySymbol([
+              config.nativeSymbol,
+            ]);
+            const nativePriceEntry = symbolPrices?.data?.[0]?.prices?.[0];
+            if (nativePriceEntry?.value) {
+              nativePrice = Number(nativePriceEntry.value);
+            }
+          } catch (priceError) {
+            console.warn(`Failed to fetch native price for ${config.label}`, priceError);
+          }
+
           try {
             const native = await alchemy.core.getBalance(walletAddress);
-            const nativeAmount = Number(
-              formatUnits(BigInt(native.toString()), 18),
-            );
-            results.push({
-              symbol: config.nativeSymbol,
-              name: `${config.label} Native`,
-              amount: nativeAmount.toLocaleString(undefined, {
-                maximumFractionDigits: 6,
-              }),
-              network: config.label,
-            });
+            const nativeRaw = BigInt(native.toString());
+            if (nativeRaw > BigInt(0)) {
+              const nativeAmount = Number(formatUnits(nativeRaw, 18));
+              const nativeUsd =
+                nativePrice !== undefined ? nativeAmount * nativePrice : undefined;
+              results.push({
+                symbol: config.nativeSymbol,
+                name: `${config.label} Native`,
+                amount: nativeAmount.toLocaleString(undefined, {
+                  maximumFractionDigits: 6,
+                }),
+                network: config.label,
+                usdValue:
+                  nativeUsd !== undefined
+                    ? `$${nativeUsd.toLocaleString(undefined, {
+                        maximumFractionDigits: 2,
+                      })}`
+                    : undefined,
+                usdValueNumber: nativeUsd,
+              });
+            }
           } catch (nativeError) {
             console.warn(`Failed to fetch native balance for ${config.label}`, nativeError);
           }
 
-          // ERC-20 balances per network
           try {
             const response = await alchemy.core.getTokenBalances(walletAddress);
             const tokensWithBalance = response.tokenBalances.filter((balance) => {
@@ -151,6 +175,10 @@ export const TokenList = () => {
               }
             });
 
+            if (tokensWithBalance.length === 0) {
+              continue;
+            }
+
             const metadataPromises = tokensWithBalance.map((token) =>
               alchemy.core.getTokenMetadata(token.contractAddress).then((metadata) => ({
                 metadata,
@@ -160,44 +188,96 @@ export const TokenList = () => {
 
             const metadataResults = await Promise.allSettled(metadataPromises);
 
-            for (const result of metadataResults) {
-              if (result.status !== 'fulfilled') {
-                console.warn('Failed to fetch token metadata', result.reason);
-                continue;
-              }
-
-              const { metadata, token } = result.value;
-              const decimals = metadata?.decimals ?? 18;
-
-              try {
+            const tokenEntries = metadataResults
+              .filter(
+                (result): result is PromiseFulfilledResult<{
+                  metadata: Awaited<ReturnType<typeof alchemy.core.getTokenMetadata>>;
+                  token: (typeof tokensWithBalance)[number];
+                }> => result.status === 'fulfilled',
+              )
+              .map((result) => result.value)
+              .map(({ metadata, token }) => {
+                const decimals = metadata?.decimals ?? 18;
                 const raw = token.tokenBalance ?? '0';
-                const amount = Number(formatUnits(BigInt(raw), Number(decimals)));
-                let usdValue: string | undefined;
-
-                if (metadata?.symbol === 'WLD' && wldPrice !== undefined) {
-                  usdValue = `$${(amount * wldPrice).toLocaleString(undefined, {
-                    maximumFractionDigits: 2,
-                  })}`;
-                }
-
-                results.push({
+                const amountNumber = Number(
+                  formatUnits(BigInt(raw), Number(decimals)),
+                );
+                return {
+                  contractAddress: token.contractAddress,
+                  amountNumber,
+                  decimals,
                   symbol: metadata?.symbol || 'UNKNOWN',
                   name: metadata?.name || 'Unknown Token',
-                  amount: amount.toLocaleString(undefined, {
-                    maximumFractionDigits: 6,
-                  }),
-                  usdValue,
-                  network: config.label,
-                });
-              } catch (err) {
-                console.warn('Failed to process token balance', err);
-              }
+                  logo: metadata?.logo || null,
+                };
+              })
+              .filter((entry) => entry.amountNumber > 0);
+
+            if (tokenEntries.length === 0) {
+              continue;
             }
+
+            const priceRequests: TokenAddressRequest[] = tokenEntries.map((entry) => ({
+              network: config.network,
+              address: entry.contractAddress,
+            }));
+
+            const priceMap = new Map<string, number>();
+            try {
+              const priceResponse = await alchemy.prices.getTokenPriceByAddress(
+                priceRequests,
+              );
+              priceResponse?.data?.forEach((item) => {
+                const priceValue = item.prices?.[0]?.value;
+                if (priceValue) {
+                  priceMap.set(item.address.toLowerCase(), Number(priceValue));
+                }
+              });
+            } catch (priceError) {
+              console.warn(
+                `Failed to fetch token prices for ${config.label}`,
+                priceError,
+              );
+            }
+
+            tokenEntries.forEach((entry) => {
+              const priceFromMap = priceMap.get(entry.contractAddress.toLowerCase());
+              const price =
+                priceFromMap !== undefined
+                  ? priceFromMap
+                  : entry.symbol === 'WLD' && wldPrice !== undefined
+                    ? wldPrice
+                    : undefined;
+              const usdValueNumber =
+                price !== undefined ? entry.amountNumber * price : undefined;
+              results.push({
+                symbol: entry.symbol,
+                name: entry.name,
+                amount: entry.amountNumber.toLocaleString(undefined, {
+                  maximumFractionDigits: 6,
+                }),
+                usdValue:
+                  usdValueNumber !== undefined
+                    ? `$${usdValueNumber.toLocaleString(undefined, {
+                        maximumFractionDigits: 2,
+                      })}`
+                    : undefined,
+                usdValueNumber,
+                network: config.label,
+                logo: entry.logo,
+              });
+            });
           } catch (tokenError) {
-            console.warn(`Failed to fetch token balances via Alchemy for ${config.label}`, tokenError);
+            console.warn(
+              `Failed to fetch token balances via Alchemy for ${config.label}`,
+              tokenError,
+            );
           }
         }
 
+        results.sort(
+          (a, b) => (b.usdValueNumber ?? 0) - (a.usdValueNumber ?? 0),
+        );
         setTokens(results);
       } catch (e) {
         console.error(e);
@@ -211,17 +291,23 @@ export const TokenList = () => {
 
   const totalValue = useMemo(() => {
     if (!tokens) return 0;
-    return tokens.reduce((sum, t) => {
-      const v = t.usdValue ? Number(t.usdValue.replace(/[$,]/g, '')) : 0;
-      return sum + (isNaN(v) ? 0 : v);
-    }, 0);
+    return tokens.reduce((sum, t) => sum + (t.usdValueNumber ?? 0), 0);
   }, [tokens]);
+
+  const formattedTotal = useMemo(
+    () =>
+      totalValue.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+    [totalValue],
+  );
 
   return (
     <div className="w-full space-y-4">
       <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl p-6 text-white">
         <h2 className="text-lg font-semibold mb-2">Portfolio Value</h2>
-        <p className="text-3xl font-bold">${totalValue.toLocaleString()}</p>
+        <p className="text-3xl font-bold">${formattedTotal}</p>
         <p className="text-sm opacity-90 mt-1">
           Connected to: {walletAddress || 'Unknown Wallet'}
         </p>
@@ -243,9 +329,19 @@ export const TokenList = () => {
             className="flex items-center justify-between p-4 bg-white border-2 border-gray-100 rounded-xl hover:border-gray-200 transition-colors"
           >
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                {token.symbol.charAt(0)}
-              </div>
+              {token.logo ? (
+                <Image
+                  src={token.logo}
+                  alt={`${token.symbol} logo`}
+                  width={40}
+                  height={40}
+                  className="rounded-full object-cover border border-gray-200"
+                />
+              ) : (
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                  {token.symbol.charAt(0)}
+                </div>
+              )}
               <div>
                 <p className="font-semibold text-gray-800">{token.symbol}</p>
                 <p className="text-sm text-gray-500">{token.name}</p>
@@ -254,9 +350,9 @@ export const TokenList = () => {
             </div>
             <div className="text-right">
               <p className="font-semibold text-gray-800">{token.amount}</p>
-              {token.usdValue && (
-                <p className="text-sm text-gray-500">{token.usdValue}</p>
-              )}
+              <p className="text-sm text-gray-500">
+                {token.usdValue ?? '—'}
+              </p>
             </div>
           </div>
         ))}
