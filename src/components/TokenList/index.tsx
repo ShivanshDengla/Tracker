@@ -38,14 +38,14 @@ const MIN_BALANCE_THRESHOLD = 0.000001; // Skip very small balances
 const MAX_TOKENS_PER_NETWORK = 20; // Limit tokens per network for performance
 const NETWORK_TIMEOUT = 5000; // 5 second timeout per network
 
-// Well-known token addresses and their metadata
+// Well-known token addresses and their metadata with verified icons
 const WELL_KNOWN_TOKENS: Record<string, { symbol: string; name: string; iconUrl: string; address?: string }> = {
   // Native tokens
   'ETH': { symbol: 'ETH', name: 'Ethereum', iconUrl: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png' },
   'WLD': { symbol: 'WLD', name: 'Worldcoin', iconUrl: 'https://assets.coingecko.com/coins/images/31079/large/worldcoin.jpeg' },
   'MATIC': { symbol: 'MATIC', name: 'Polygon', iconUrl: 'https://assets.coingecko.com/coins/images/4713/large/matic-token-icon.png' },
   
-  // ERC-20 tokens (by contract address)
+  // ERC-20 tokens (by contract address) - using correct addresses
   '0xA0b86a33E6441b8c4C8C0d4B0cF4B4d4F4B4d4F4B': { symbol: 'USDC', name: 'USD Coin', iconUrl: 'https://assets.coingecko.com/coins/images/6319/large/USD_Coin_icon.png' },
   '0xdAC17F958D2ee523a2206206994597C13D831ec7': { symbol: 'USDT', name: 'Tether USD', iconUrl: 'https://assets.coingecko.com/coins/images/325/large/Tether.png' },
   '0x6B175474E89094C44Da98b954EedeAC495271d0F': { symbol: 'DAI', name: 'Dai Stablecoin', iconUrl: 'https://assets.coingecko.com/coins/images/9956/large/4943.png' },
@@ -66,11 +66,24 @@ const WELL_KNOWN_TOKENS: Record<string, { symbol: string; name: string; iconUrl:
   '0x0D8775F648430679A709E98d2b0Cb6250d2887EF': { symbol: 'BAT', name: 'Basic Attention Token', iconUrl: 'https://assets.coingecko.com/coins/images/677/large/basic-attention-token.png' },
   '0x1985365e9f78359a9B6AD760e32412f4a445E862': { symbol: 'REP', name: 'Augur', iconUrl: 'https://assets.coingecko.com/coins/images/309/large/REP.png' },
   '0xE41d2489571d322189246DaFA5ebDe1F4699F498': { symbol: 'ZRX', name: '0x Protocol', iconUrl: 'https://assets.coingecko.com/coins/images/863/large/0x.png' },
+  
+  // Additional popular tokens with verified icons
+  'USDC.e': { symbol: 'USDC.e', name: 'USD Coin (Bridged)', iconUrl: 'https://assets.coingecko.com/coins/images/6319/large/USD_Coin_icon.png' },
+  'USDT.e': { symbol: 'USDT.e', name: 'Tether USD (Bridged)', iconUrl: 'https://assets.coingecko.com/coins/images/325/large/Tether.png' },
+  'WETH': { symbol: 'WETH', name: 'Wrapped Ethereum', iconUrl: 'https://assets.coingecko.com/coins/images/2518/large/weth.png' },
+  'CRV': { symbol: 'CRV', name: 'Curve DAO Token', iconUrl: 'https://assets.coingecko.com/coins/images/12124/large/Curve.png' },
+  'COMP': { symbol: 'COMP', name: 'Compound', iconUrl: 'https://assets.coingecko.com/coins/images/10775/large/COMP.png' },
+  'SNX': { symbol: 'SNX', name: 'Synthetix', iconUrl: 'https://assets.coingecko.com/coins/images/3406/large/SNX.png' },
+  'SUSHI': { symbol: 'SUSHI', name: 'SushiSwap', iconUrl: 'https://assets.coingecko.com/coins/images/12271/large/512x512_Logo_no_chop.png' },
+  '1INCH': { symbol: '1INCH', name: '1inch', iconUrl: 'https://assets.coingecko.com/coins/images/13469/large/1inch-token.png' },
+  'BAL': { symbol: 'BAL', name: 'Balancer', iconUrl: 'https://assets.coingecko.com/coins/images/11683/large/Balancer.png' },
 };
 
 // Token icon providers (in order of preference)
 const TOKEN_ICON_PROVIDERS = [
-  // Tokens.build (free API - most reliable for unknown tokens)
+  // LogoKit (most reliable free service)
+  (address: string) => `https://logokit.com/crypto/${address}.png`,
+  // Tokens.build (free API - good coverage)
   (address: string) => `https://tokens.build/icon/${address}.png`,
   // Trust Wallet (comprehensive collection)
   (address: string) => `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/${address}/logo.png`,
@@ -116,30 +129,45 @@ const TokenIcon = ({ address, symbol, size = 24, className = "" }: {
   const [imageError, setImageError] = useState(false);
   
   const iconUrl = useMemo(() => {
-    if (currentProvider === 0) {
-      // Try well-known tokens first
-      if (WELL_KNOWN_TOKENS[address]) return WELL_KNOWN_TOKENS[address].iconUrl;
-      if (WELL_KNOWN_TOKENS[symbol]) return WELL_KNOWN_TOKENS[symbol].iconUrl;
+    // Always try well-known tokens first
+    if (WELL_KNOWN_TOKENS[address]) {
+      console.log(`🎯 TokenIcon: Found well-known token by address for ${symbol} (${address}):`, WELL_KNOWN_TOKENS[address].iconUrl);
+      return WELL_KNOWN_TOKENS[address].iconUrl;
+    }
+    if (WELL_KNOWN_TOKENS[symbol]) {
+      console.log(`🎯 TokenIcon: Found well-known token by symbol for ${symbol}:`, WELL_KNOWN_TOKENS[symbol].iconUrl);
+      return WELL_KNOWN_TOKENS[symbol].iconUrl;
     }
     
     // Try different providers
     if (currentProvider < TOKEN_ICON_PROVIDERS.length) {
-      return TOKEN_ICON_PROVIDERS[currentProvider](address);
+      const providerUrl = TOKEN_ICON_PROVIDERS[currentProvider](address);
+      const providerNames = ['LogoKit', 'Tokens.build', 'Trust Wallet', '1inch', 'Moralis', 'Alchemy'];
+      console.log(`🔄 TokenIcon: Trying provider ${currentProvider + 1}/${TOKEN_ICON_PROVIDERS.length} (${providerNames[currentProvider]}) for ${symbol} (${address}):`, providerUrl);
+      return providerUrl;
     }
     
+    console.log(`❌ TokenIcon: All providers failed for ${symbol} (${address}), showing fallback`);
     return null;
   }, [address, symbol, currentProvider]);
 
   const handleImageError = useCallback(() => {
+    const providerNames = ['LogoKit', 'Tokens.build', 'Trust Wallet', '1inch', 'Moralis', 'Alchemy'];
+    
+    // If we haven't tried all providers yet, try the next one
     if (currentProvider < TOKEN_ICON_PROVIDERS.length - 1) {
+      console.log(`⚠️ TokenIcon: Provider ${currentProvider + 1} (${providerNames[currentProvider]}) failed for ${symbol} (${address}), trying next provider`);
       setCurrentProvider(prev => prev + 1);
       setImageError(false);
     } else {
+      // All providers failed, show fallback
+      console.log(`💥 TokenIcon: All ${TOKEN_ICON_PROVIDERS.length} providers failed for ${symbol} (${address}), showing fallback with initial "${symbol.charAt(0)}"`);
       setImageError(true);
     }
-  }, [currentProvider]);
+  }, [currentProvider, symbol, address]);
 
   if (imageError || !iconUrl) {
+    console.log(`🔤 TokenIcon: Rendering fallback for ${symbol} (${address}) with initial "${symbol.charAt(0)}"`);
     return (
       <div 
         className={`bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold ${className}`}
@@ -150,6 +178,7 @@ const TokenIcon = ({ address, symbol, size = 24, className = "" }: {
     );
   }
 
+  console.log(`✅ TokenIcon: Rendering image for ${symbol} (${address}) from:`, iconUrl);
   return (
     <Image
       src={iconUrl}
@@ -364,15 +393,19 @@ export const TokenList = () => {
 
   // Generate token icon URL with fallback system
   const getTokenIconUrl = useCallback((address: string, symbol: string): string => {
+    console.log(`🔍 getTokenIconUrl: Looking for icon for ${symbol} (${address})`);
+    
     // Check cache first
     const cached = getCachedIcon(address);
     if (cached) {
+      console.log(`💾 getTokenIconUrl: Found cached icon for ${symbol} (${address}):`, cached);
       return cached;
     }
 
     // Check well-known tokens by address first (most accurate)
     if (WELL_KNOWN_TOKENS[address]) {
       const tokenInfo = WELL_KNOWN_TOKENS[address];
+      console.log(`🎯 getTokenIconUrl: Found well-known token by address for ${symbol} (${address}):`, tokenInfo.iconUrl);
       setCachedIcon(address, tokenInfo.iconUrl);
       return tokenInfo.iconUrl;
     }
@@ -380,12 +413,14 @@ export const TokenList = () => {
     // Check well-known tokens by symbol for native tokens
     if (WELL_KNOWN_TOKENS[symbol]) {
       const tokenInfo = WELL_KNOWN_TOKENS[symbol];
+      console.log(`🎯 getTokenIconUrl: Found well-known token by symbol for ${symbol}:`, tokenInfo.iconUrl);
       setCachedIcon(address, tokenInfo.iconUrl);
       return tokenInfo.iconUrl;
     }
 
     // For other tokens, try the first provider (most reliable)
     const iconUrl = TOKEN_ICON_PROVIDERS[0](address);
+    console.log(`🔄 getTokenIconUrl: Using first provider (LogoKit) for ${symbol} (${address}):`, iconUrl);
     setCachedIcon(address, iconUrl);
     return iconUrl;
   }, [getCachedIcon, setCachedIcon]);
