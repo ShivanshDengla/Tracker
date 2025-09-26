@@ -70,7 +70,7 @@ const HIDE_TOKEN_THRESHOLD = 0.5;
 
 const ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
 
-// Simple token icon component using Alchemy metadata
+// Token icon component with fallback system
 const TokenIcon = ({ logo, symbol, size = 24, className = "" }: { 
   logo?: string | null; 
   symbol: string; 
@@ -78,9 +78,52 @@ const TokenIcon = ({ logo, symbol, size = 24, className = "" }: {
   className?: string; 
 }) => {
   const [imageError, setImageError] = useState(false);
+  const [currentProvider, setCurrentProvider] = useState(0);
   
-  if (imageError || !logo) {
-    console.log(`🔤 TokenIcon: Rendering fallback for ${symbol} with initial "${symbol.charAt(0)}" - logo:`, logo, 'error:', imageError);
+  // Fallback icon providers for tokens without Alchemy logos
+  const fallbackProviders = [
+    (symbol: string) => `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/${symbol}/logo.png`,
+    (symbol: string) => `https://tokens.build/icon/${symbol}.png`,
+    (symbol: string) => `https://tokens.1inch.io/${symbol}.png`,
+  ];
+  
+  // Get icon URL - try Alchemy first, then fallback providers
+  const iconUrl = useMemo(() => {
+    if (logo) {
+      console.log(`✅ TokenIcon: Using Alchemy logo for ${symbol}:`, logo);
+      return logo;
+    }
+    
+    // Try fallback providers
+    if (currentProvider < fallbackProviders.length) {
+      const fallbackUrl = fallbackProviders[currentProvider](symbol);
+      console.log(`🔄 TokenIcon: Trying fallback provider ${currentProvider + 1} for ${symbol}:`, fallbackUrl);
+      return fallbackUrl;
+    }
+    
+    return null;
+  }, [logo, symbol, currentProvider]);
+  
+  const handleImageError = useCallback(() => {
+    if (logo) {
+      // Alchemy logo failed, try fallback providers
+      console.log(`💥 TokenIcon: Alchemy logo failed for ${symbol}, trying fallback providers`);
+      setImageError(false);
+      setCurrentProvider(0);
+    } else if (currentProvider < fallbackProviders.length - 1) {
+      // Try next fallback provider
+      console.log(`⚠️ TokenIcon: Fallback provider ${currentProvider + 1} failed for ${symbol}, trying next`);
+      setCurrentProvider(prev => prev + 1);
+      setImageError(false);
+    } else {
+      // All providers failed
+      console.log(`💥 TokenIcon: All providers failed for ${symbol}, showing initial fallback`);
+      setImageError(true);
+    }
+  }, [logo, symbol, currentProvider]);
+  
+  if (imageError || !iconUrl) {
+    console.log(`🔤 TokenIcon: Rendering initial fallback for ${symbol} with "${symbol.charAt(0)}" - logo:`, logo, 'error:', imageError);
     return (
       <div 
         className={`bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold ${className}`}
@@ -91,18 +134,14 @@ const TokenIcon = ({ logo, symbol, size = 24, className = "" }: {
     );
   }
 
-  console.log(`✅ TokenIcon: Rendering image for ${symbol} from Alchemy:`, logo);
   return (
     <Image
-      src={logo}
+      src={iconUrl}
       alt={`${symbol} logo`}
       width={size}
       height={size}
       className={`rounded-full object-cover border border-gray-200 ${className}`}
-      onError={() => {
-        console.log(`💥 TokenIcon: Alchemy logo failed for ${symbol}, showing fallback`);
-        setImageError(true);
-      }}
+      onError={handleImageError}
     />
   );
 };
