@@ -47,45 +47,34 @@ const NETWORK_PRIORITY: Record<string, number> = {
   'OPT_MAINNET': 5,
 };
 
-// Simple token icon mappings - just the essentials
+// Local token icon mappings from public/Tokens
 const TOKEN_ICONS: Record<string, string> = {
-  'ETH': 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
-  'WLD': 'https://cryptologos.cc/logos/worldcoin-wld-logo.png',
-  'USDC': 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png',
-  'USDT': 'https://cryptologos.cc/logos/tether-usdt-logo.png',
-  'DAI': 'https://cryptologos.cc/logos/multi-collateral-dai-dai-logo.png',
-  'LINK': 'https://cryptologos.cc/logos/chainlink-link-logo.png',
-  'UNI': 'https://cryptologos.cc/logos/uniswap-uni-logo.png',
-  'WBTC': 'https://cryptologos.cc/logos/wrapped-bitcoin-wbtc-logo.png',
-  'AAVE': 'https://cryptologos.cc/logos/aave-aave-logo.png',
-  'MATIC': 'https://cryptologos.cc/logos/polygon-matic-logo.png',
-  'BNB': 'https://cryptologos.cc/logos/bnb-bnb-logo.png',
-  'AVAX': 'https://cryptologos.cc/logos/avalanche-avax-logo.png',
+  'ETH': '/Tokens/eth.png',
+  'WLD': '/Tokens/wld.png',
+  'USDC': '/Tokens/usdc.png',
+  'USDT': '/Tokens/usdt.png',
+  'DAI': '/Tokens/dai.png',
+  'LINK': '/Tokens/chainlink.png',
+  'UNI': '/Tokens/uniswap.png',
+  'AAVE': '/Tokens/aave.png',
+  'MATIC': '/Tokens/matic.png',
+  'BNB': '/Tokens/bnb.png',
+  'AVAX': '/Tokens/avax.png',
+  'BASE': '/Tokens/base.webp',
+  'BITCOIN': '/Tokens/bitcoin.png',
 };
 
-// Static chain icon mappings (no runtime fetching)
+// Local chain icon mappings from public/Chains
 const CHAIN_ICONS: Record<string, string> = {
-  // Major chains
-  'ethereum': 'https://assets.coingecko.com/coins/images/279/standard/ethereum.png?1696501628',
-  'polygon': 'https://assets.coingecko.com/coins/images/4713/standard/matic-token-icon.png?1696501628',
-  'arbitrum': 'https://assets.coingecko.com/coins/images/16547/standard/photo_2023-03-29_21.47.00.jpeg?1696501628',
-  'optimism': 'https://assets.coingecko.com/coins/images/25244/standard/Optimism.png?1696501628',
-  'base': 'https://assets.coingecko.com/coins/images/27513/standard/lup6.png?1696501628',
-  'avalanche': 'https://assets.coingecko.com/coins/images/12559/standard/Avalanche_Circle_RedWhite_Trans.png?1696501628',
-  'fantom': 'https://assets.coingecko.com/coins/images/4001/standard/Fantom_round.png?1696501628',
-  'bsc': 'https://assets.coingecko.com/coins/images/825/standard/bnb-icon2_2x.png?1696501628',
-  'cronos': 'https://assets.coingecko.com/coins/images/7310/standard/cro_token_logo.png?1696501628',
-  'harmony': 'https://assets.coingecko.com/coins/images/4344/standard/Y88JAze.png?1696501628',
-  'worldchain': 'https://assets.coingecko.com/coins/images/31079/standard/worldcoin.jpeg?1696501628',
-  
-  // Layer 2s
-  'linea': 'https://assets.coingecko.com/coins/images/31079/standard/worldcoin.jpeg?1696501628', // Using WLD as placeholder
-  'scroll': 'https://assets.coingecko.com/coins/images/31079/standard/worldcoin.jpeg?1696501628', // Using WLD as placeholder
-  'mantle': 'https://assets.coingecko.com/coins/images/31079/standard/worldcoin.jpeg?1696501628', // Using WLD as placeholder
-  'zksync': 'https://assets.coingecko.com/coins/images/31079/standard/worldcoin.jpeg?1696501628', // Using WLD as placeholder
+  'ethereum': '/Chains/eth chain.webp',
+  'polygon': '/Chains/polygon chain.png',
+  'arbitrum': '/Chains/arbitrum chain.jpeg',
+  'optimism': '/Chains/op chain.png',
+  'base': '/Chains/base.webp',
+  'worldchain': '/Chains/wld.png',
 };
 
-// Network icons mapping using static URLs
+// Network icons mapping using local assets
 const NETWORK_ICONS: Record<string, string> = {
   'ETH_MAINNET': CHAIN_ICONS['ethereum'],
   'WORLDCHAIN_MAINNET': CHAIN_ICONS['worldchain'],
@@ -117,23 +106,23 @@ const TokenIcon = ({ logo, symbol, size = 24, className = "" }: {
 }) => {
   const [imageError, setImageError] = useState(false);
   
-  // Simple icon URL logic
+  // Simple local icon logic
   const iconUrl = useMemo(() => {
     // Try Alchemy first
     if (logo) {
       return logo;
     }
     
-    // Try simple mapping
+    // Try local mapping
     const cleanSymbol = symbol.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     const icon = TOKEN_ICONS[cleanSymbol];
     
     if (icon) {
-      console.log(`✅ Found icon for ${symbol} -> ${cleanSymbol}`);
+      console.log(`✅ Found local icon for ${symbol} -> ${cleanSymbol}: ${icon}`);
       return icon;
     }
     
-    console.log(`❌ No icon for ${symbol}`);
+    console.log(`❌ No local icon for ${symbol}`);
     return null;
   }, [logo, symbol]);
   
