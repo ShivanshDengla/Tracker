@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { createPublicClient, formatUnits, http } from 'viem';
-import { worldchain } from 'viem/chains';
+import { worldchain, mainnet } from 'viem/chains';
 
 const ERC20_ABI = [
   {
@@ -67,14 +67,22 @@ export const TokenList = () => {
 
   const walletAddress = session?.data?.user?.walletAddress as `0x${string}` | undefined;
 
-  const client = useMemo(() => {
-    return createPublicClient({
+  const { wcClient, ethClient } = useMemo(() => {
+    const wcClient = createPublicClient({
       chain: worldchain,
       transport: http(
         process.env.NEXT_PUBLIC_WORLDCHAIN_RPC ||
           'https://worldchain-mainnet.g.alchemy.com/public',
       ),
     });
+    const ethClient = createPublicClient({
+      chain: mainnet,
+      transport: http(
+        process.env.NEXT_PUBLIC_ETHEREUM_RPC ||
+          'https://cloudflare-eth.com',
+      ),
+    });
+    return { wcClient, ethClient };
   }, []);
 
   useEffect(() => {
@@ -83,51 +91,88 @@ export const TokenList = () => {
       setLoading(true);
       setError(null);
       try {
-        const configuredTokens: { address: `0x${string}`; symbol?: string }[] = [];
-        const wldAddress = process.env.NEXT_PUBLIC_WLD_TOKEN_ADDRESS as
-          | `0x${string}`
-          | undefined;
-        const usdcAddress = process.env.NEXT_PUBLIC_USDC_TOKEN_ADDRESS as
-          | `0x${string}`
-          | undefined;
-
-        if (wldAddress) configuredTokens.push({ address: wldAddress, symbol: 'WLD' });
-        if (usdcAddress) configuredTokens.push({ address: usdcAddress, symbol: 'USDC' });
-
-        const wldUsd = await getWldUsdPrice();
-
         const results: PortfolioToken[] = [];
-        for (const t of configuredTokens) {
-          const [rawBalance, decimals, name, symbol] = await Promise.all([
-            client.readContract({
-              address: t.address,
-              abi: ERC20_ABI,
-              functionName: 'balanceOf',
-              args: [walletAddress],
-            }),
-            client.readContract({ address: t.address, abi: ERC20_ABI, functionName: 'decimals' }),
-            client.readContract({ address: t.address, abi: ERC20_ABI, functionName: 'name' }),
-            client.readContract({ address: t.address, abi: ERC20_ABI, functionName: 'symbol' }),
-          ]);
 
-          const amount = formatUnits(rawBalance as bigint, Number(decimals));
-          let usdValue: string | undefined = undefined;
-          if ((t.symbol || symbol) === 'WLD' && wldUsd !== undefined) {
-            const usd = Number(amount) * wldUsd;
-            usdValue = `$${usd.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
-          } else if ((t.symbol || symbol) === 'USDC') {
-            const usd = Number(amount) * 1;
-            usdValue = `$${usd.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
-          }
-
+        // 1) Native balance on World Chain
+        try {
+          const native = await wcClient.getBalance({ address: walletAddress });
+          const nativeAmount = Number(formatUnits(native, 18));
           results.push({
-            symbol: (t.symbol || (symbol as string)) as string,
-            name: name as string,
-            amount: Number(amount).toLocaleString(undefined, {
-              maximumFractionDigits: 6,
-            }),
-            usdValue,
+            symbol: 'ETH',
+            name: 'World Chain Native',
+            amount: nativeAmount.toLocaleString(undefined, { maximumFractionDigits: 6 }),
           });
+        } catch (e) {
+          console.warn('Failed to fetch native WC balance', e);
+        }
+
+        // 2) WLD balance
+        const wldUsd = await getWldUsdPrice();
+        const envWld = process.env.NEXT_PUBLIC_WLD_TOKEN_ADDRESS as `0x${string}` | undefined;
+        if (envWld) {
+          // Use configured WLD on World Chain
+          try {
+            const [rawBalance, decimals, name, symbol] = await Promise.all([
+              wcClient.readContract({ address: envWld, abi: ERC20_ABI, functionName: 'balanceOf', args: [walletAddress] }),
+              wcClient.readContract({ address: envWld, abi: ERC20_ABI, functionName: 'decimals' }),
+              wcClient.readContract({ address: envWld, abi: ERC20_ABI, functionName: 'name' }),
+              wcClient.readContract({ address: envWld, abi: ERC20_ABI, functionName: 'symbol' }),
+            ]);
+            const amount = formatUnits(rawBalance as bigint, Number(decimals));
+            const usd = wldUsd !== undefined ? `$${(Number(amount) * wldUsd).toLocaleString(undefined, { maximumFractionDigits: 2 })}` : undefined;
+            results.push({
+              symbol: symbol as string,
+              name: name as string,
+              amount: Number(amount).toLocaleString(undefined, { maximumFractionDigits: 6 }),
+              usdValue: usd,
+            });
+          } catch (e) {
+            console.warn('Failed to fetch WLD on WC', e);
+          }
+        } else {
+          // Default to Ethereum mainnet WLD contract
+          const WLD_ETH_MAINNET = '0x163f8c2467924be0ae7b5347228cabf260318753' as `0x${string}`;
+          try {
+            const [rawBalance, decimals, name, symbol] = await Promise.all([
+              ethClient.readContract({ address: WLD_ETH_MAINNET, abi: ERC20_ABI, functionName: 'balanceOf', args: [walletAddress] }),
+              ethClient.readContract({ address: WLD_ETH_MAINNET, abi: ERC20_ABI, functionName: 'decimals' }),
+              ethClient.readContract({ address: WLD_ETH_MAINNET, abi: ERC20_ABI, functionName: 'name' }),
+              ethClient.readContract({ address: WLD_ETH_MAINNET, abi: ERC20_ABI, functionName: 'symbol' }),
+            ]);
+            const amount = formatUnits(rawBalance as bigint, Number(decimals));
+            const usd = wldUsd !== undefined ? `$${(Number(amount) * wldUsd).toLocaleString(undefined, { maximumFractionDigits: 2 })}` : undefined;
+            results.push({
+              symbol: symbol as string,
+              name: name as string,
+              amount: Number(amount).toLocaleString(undefined, { maximumFractionDigits: 6 }),
+              usdValue: usd,
+            });
+          } catch (e) {
+            console.warn('Failed to fetch WLD on ETH mainnet', e);
+          }
+        }
+
+        // 3) USDC on World Chain if configured
+        const envUsdc = process.env.NEXT_PUBLIC_USDC_TOKEN_ADDRESS as `0x${string}` | undefined;
+        if (envUsdc) {
+          try {
+            const [rawBalance, decimals, name, symbol] = await Promise.all([
+              wcClient.readContract({ address: envUsdc, abi: ERC20_ABI, functionName: 'balanceOf', args: [walletAddress] }),
+              wcClient.readContract({ address: envUsdc, abi: ERC20_ABI, functionName: 'decimals' }),
+              wcClient.readContract({ address: envUsdc, abi: ERC20_ABI, functionName: 'name' }),
+              wcClient.readContract({ address: envUsdc, abi: ERC20_ABI, functionName: 'symbol' }),
+            ]);
+            const amount = formatUnits(rawBalance as bigint, Number(decimals));
+            const usd = `$${Number(amount).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+            results.push({
+              symbol: symbol as string,
+              name: name as string,
+              amount: Number(amount).toLocaleString(undefined, { maximumFractionDigits: 6 }),
+              usdValue: usd,
+            });
+          } catch (e) {
+            console.warn('Failed to fetch USDC on WC', e);
+          }
         }
 
         setTokens(results);
@@ -139,7 +184,7 @@ export const TokenList = () => {
       }
     };
     run();
-  }, [walletAddress, client]);
+  }, [walletAddress, wcClient, ethClient]);
 
   const totalValue = useMemo(() => {
     if (!tokens) return 0;
@@ -167,9 +212,7 @@ export const TokenList = () => {
         {loading && <p className="text-sm text-gray-500">Loading balances…</p>}
         {error && <p className="text-sm text-red-600">{error}</p>}
         {!loading && walletAddress && tokens?.length === 0 && (
-          <p className="text-sm text-gray-500">
-            No configured tokens found. Set NEXT_PUBLIC_WLD_TOKEN_ADDRESS and/or NEXT_PUBLIC_USDC_TOKEN_ADDRESS.
-          </p>
+          <p className="text-sm text-gray-500">No balances found.</p>
         )}
         {tokens?.map((token, index) => (
           <div
