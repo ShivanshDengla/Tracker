@@ -49,33 +49,36 @@ const NETWORK_PRIORITY: Record<string, number> = {
 
 // Static token icon mappings (no runtime fetching)
 const TOKEN_ICONS: Record<string, string> = {
-  // Native tokens
-  'ETH': 'https://assets.coingecko.com/coins/images/279/standard/ethereum.png?1696501628',
-  'MATIC': 'https://assets.coingecko.com/coins/images/4713/standard/matic-token-icon.png?1696501628',
-  'WLD': 'https://assets.coingecko.com/coins/images/31079/standard/worldcoin.jpeg?1696501628',
-  'BNB': 'https://assets.coingecko.com/coins/images/825/standard/bnb-icon2_2x.png?1696501628',
-  'AVAX': 'https://assets.coingecko.com/coins/images/12559/standard/Avalanche_Circle_RedWhite_Trans.png?1696501628',
-  'FTM': 'https://assets.coingecko.com/coins/images/4001/standard/Fantom_round.png?1696501628',
-  'ONE': 'https://assets.coingecko.com/coins/images/4344/standard/Y88JAze.png?1696501628',
-  'CRO': 'https://assets.coingecko.com/coins/images/7310/standard/cro_token_logo.png?1696501628',
+  // Native tokens - using multiple sources for reliability
+  'ETH': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/info/logo.png',
+  'MATIC': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/polygon/info/logo.png',
+  'WLD': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x163f8C2467924be0ae7B5347228CABF260318753/logo.png',
+  'BNB': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/info/logo.png',
+  'AVAX': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/avalanchec/info/logo.png',
+  'FTM': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/fantom/info/logo.png',
+  'ONE': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/harmony/info/logo.png',
+  'CRO': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/cronos/info/logo.png',
   
-  // Major ERC-20 tokens
-  'WETH': 'https://assets.coingecko.com/coins/images/2518/standard/weth.png?1696501628',
-  'USDC': 'https://assets.coingecko.com/coins/images/6319/standard/USD_Coin_icon.png?1696501628',
-  'USDT': 'https://assets.coingecko.com/coins/images/325/standard/Tether.png?1696501628',
-  'DAI': 'https://assets.coingecko.com/coins/images/9956/standard/4943.png?1696501628',
-  'LINK': 'https://assets.coingecko.com/coins/images/877/standard/chainlink-new-logo.png?1696501628',
-  'UNI': 'https://assets.coingecko.com/coins/images/12504/standard/uniswap-uni.png?1696501628',
-  'WBTC': 'https://assets.coingecko.com/coins/images/7598/standard/wrapped_bitcoin_wbtc.png?1696501628',
-  'AAVE': 'https://assets.coingecko.com/coins/images/12645/standard/AAVE.png?1696501628',
-  'MKR': 'https://assets.coingecko.com/coins/images/1364/standard/Mark_Maker.png?1696501628',
-  'YFI': 'https://assets.coingecko.com/coins/images/11849/standard/yfi-192x192.png?1696501628',
-  'COMP': 'https://assets.coingecko.com/coins/images/10775/standard/COMP.png?1696501628',
-  'CRV': 'https://assets.coingecko.com/coins/images/12124/standard/Curve.png?1696501628',
-  'SNX': 'https://assets.coingecko.com/coins/images/3406/standard/SNX.png?1696501628',
-  'SUSHI': 'https://assets.coingecko.com/coins/images/12271/standard/512x512_Logo_no_chop.png?1696501628',
-  '1INCH': 'https://assets.coingecko.com/coins/images/13469/standard/1inch-token.png?1696501628',
-  'BAL': 'https://assets.coingecko.com/coins/images/11683/standard/Balancer.png?1696501628',
+  // Major ERC-20 tokens - using Trust Wallet for reliability
+  'WETH': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png',
+  'USDC': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86a33E6441b8c4C8C0d4B0cF4B4d4F4B4d4F4B/logo.png',
+  'USDT': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png',
+  'DAI': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x6B175474E89094C44Da98b954EedeAC495271d0F/logo.png',
+  'LINK': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x514910771AF9Ca656af840dff83E8264EcF986CA/logo.png',
+  'UNI': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984/logo.png',
+  'WBTC': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599/logo.png',
+  'AAVE': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9/logo.png',
+  'MKR': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2/logo.png',
+  'YFI': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x0bc529c00C6401aEF6D220BE8c6Ea1667F6Ad93e/logo.png',
+  'COMP': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xc00e94Cb662C3520282E6f5717214004A7f26888/logo.png',
+  'CRV': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xD533a949740bb3306d119CC777fa900bA034cd52/logo.png',
+  'SNX': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC011a73ee8576Fb46F5E1c5751cA3B9Fe0af2a6F/logo.png',
+  'SUSHI': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x6B3595068778DD592e39A122f4f5a5cF09C90fE2/logo.png',
+  '1INCH': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x111111111117dC0aa78b770fA6A738034120C302/logo.png',
+  'BAL': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xba100000625a3754423978a60c9317c58a424e3D/logo.png',
+  
+  // Special cases for bridged tokens
+  'USDC.E': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86a33E6441b8c4C8C0d4B0cF4B4d4F4B4d4F4B/logo.png',
 };
 
 // Static chain icon mappings (no runtime fetching)
@@ -139,14 +142,31 @@ const TokenIcon = ({ logo, symbol, size = 24, className = "" }: {
       return logo;
     }
     
-    // Try static mapping
-    const staticIcon = TOKEN_ICONS[symbol.toUpperCase()];
+    // Try static mapping with exact symbol
+    let staticIcon = TOKEN_ICONS[symbol.toUpperCase()];
     if (staticIcon) {
       console.log(`✅ TokenIcon: Using static mapping for ${symbol}:`, staticIcon);
       return staticIcon;
     }
     
-    console.log(`❌ TokenIcon: No icon found for ${symbol}`);
+    // Try with cleaned symbol (remove special chars)
+    const cleanSymbol = symbol.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    staticIcon = TOKEN_ICONS[cleanSymbol];
+    if (staticIcon) {
+      console.log(`✅ TokenIcon: Using static mapping for cleaned ${symbol} -> ${cleanSymbol}:`, staticIcon);
+      return staticIcon;
+    }
+    
+    // Try common fallbacks
+    if (symbol.toUpperCase().includes('USDC')) {
+      staticIcon = TOKEN_ICONS['USDC'];
+      if (staticIcon) {
+        console.log(`✅ TokenIcon: Using USDC fallback for ${symbol}:`, staticIcon);
+        return staticIcon;
+      }
+    }
+    
+    console.log(`❌ TokenIcon: No icon found for ${symbol} (tried: ${symbol.toUpperCase()}, ${cleanSymbol})`);
     return null;
   }, [logo, symbol]);
   
