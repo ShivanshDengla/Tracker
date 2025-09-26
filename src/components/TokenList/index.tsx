@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { useSession } from 'next-auth/react';
+import { useSearchParams } from 'next/navigation';
 import { formatUnits } from 'viem';
 import { Alchemy, Network, type TokenAddressRequest } from 'alchemy-sdk';
 
@@ -22,6 +23,8 @@ type NetworkConfig = {
 };
 
 const DEFAULT_NETWORKS = ['ETH_MAINNET', 'WORLDCHAIN_MAINNET', 'ARB_MAINNET', 'BASE_MAINNET', 'OPT_MAINNET'];
+
+const ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
 
 const NETWORK_LABELS: Record<string, { label: string; nativeSymbol: string }> = {
   ETH_MAINNET: { label: 'Ethereum Mainnet', nativeSymbol: 'ETH' },
@@ -95,11 +98,14 @@ async function getWldUsdPrice(): Promise<number | undefined> {
 
 export const TokenList = () => {
   const session = useSession();
+  const params = useSearchParams();
+  const queryAddress = params.get('address');
+  const walletAddress =
+    (queryAddress && ADDRESS_REGEX.test(queryAddress) ? queryAddress : undefined) ||
+    (session?.data?.user?.walletAddress as `0x${string}` | undefined);
   const [tokens, setTokens] = useState<PortfolioToken[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const walletAddress = session?.data?.user?.walletAddress as `0x${string}` | undefined;
 
   const alchemyNetworks = useMemo(parseNetworks, []);
 
@@ -309,7 +315,10 @@ export const TokenList = () => {
         <h2 className="text-lg font-semibold mb-2">Portfolio Value</h2>
         <p className="text-3xl font-bold">${formattedTotal}</p>
         <p className="text-sm opacity-90 mt-1">
-          Connected to: {walletAddress || 'Unknown Wallet'}
+          Viewing:{' '}
+          {queryAddress && ADDRESS_REGEX.test(queryAddress)
+            ? queryAddress
+            : walletAddress || 'Unknown Wallet'}
         </p>
       </div>
 
