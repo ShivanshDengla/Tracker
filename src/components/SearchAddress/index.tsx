@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import { Copy, Search, Wallet } from 'iconoir-react';
+import { Copy, Wallet } from 'iconoir-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 const useDebounce = <T,>(value: T, delay: number) => {
@@ -90,7 +90,6 @@ export const SearchAddress = () => {
             <Wallet width={22} height={22} />
           </div>
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" width={18} height={18} />
             <input
               type="text"
               value={isEditing ? searchValue : displayValue}
@@ -101,7 +100,7 @@ export const SearchAddress = () => {
                 setSearchValue(value);
               }}
               placeholder="Enter or paste any wallet address"
-              className="w-full border-none bg-transparent pl-9 pr-20 text-base font-medium text-gray-800 placeholder:text-gray-400 focus:outline-none"
+              className="w-full border-none bg-transparent pl-3 pr-20 text-sm font-medium text-gray-800 placeholder:text-gray-400 focus:outline-none"
               spellCheck={false}
               autoCapitalize="none"
               autoCorrect="off"
@@ -111,7 +110,7 @@ export const SearchAddress = () => {
               <button
                 type="button"
                 onClick={handlePaste}
-                className="rounded-lg border border-blue-200 bg-white px-3 py-1 text-sm font-medium text-blue-600 hover:bg-blue-50 transition-colors shadow-sm"
+                className="rounded-lg bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700 hover:bg-blue-200 transition-colors shadow-sm"
               >
                 Paste
               </button>
