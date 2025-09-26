@@ -222,10 +222,10 @@ export function HealthScore() {
         <h2 className="text-base font-semibold">Portfolio Health</h2>
         {summary && (
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-green-600 text-white flex items-center justify-center text-lg font-bold">
+            <div className={`w-12 h-12 rounded-full text-white flex items-center justify-center text-lg font-bold ${summary.score >= 90 ? 'bg-green-600' : summary.score >= 80 ? 'bg-emerald-600' : summary.score >= 70 ? 'bg-yellow-600' : summary.score >= 60 ? 'bg-orange-600' : 'bg-red-600'}`}>
               {summary.grade}
             </div>
-            <div className="text-sm text-zinc-600 dark:text-zinc-400">{summary.score}/100</div>
+            <div className="text-sm text-zinc-800 dark:text-zinc-100 font-semibold">{summary.score}/100</div>
           </div>
         )}
       </div>
@@ -265,6 +265,20 @@ export function HealthScore() {
               )}
             </ul>
           </div>
+
+          <details className="mt-3">
+            <summary className="cursor-pointer text-sm font-semibold">How it’s calculated</summary>
+            <div className="mt-2 text-xs text-zinc-600 dark:text-zinc-400 space-y-1">
+              <p>We compute a score out of 100 based on:</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li><span className="font-medium">Top asset concentration</span>: higher than 60% lowers the score (−20), above 40% (−10).</li>
+                <li><span className="font-medium">Stablecoin allocation</span>: less than 10% lowers the score (−10); above 80% lowers slightly (−5) for growth potential.</li>
+                <li><span className="font-medium">Chain diversification</span>: using only one chain reduces score (−5).</li>
+                <li><span className="font-medium">Portfolio size heuristic</span>: very small portfolios cap the score at 70.</li>
+              </ul>
+              <p>This is a simple heuristic meant for quick guidance, not financial advice.</p>
+            </div>
+          </details>
         </div>
       )}
     </section>

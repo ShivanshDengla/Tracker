@@ -17,8 +17,13 @@ export default async function TabsLayout({
 
   return (
     <Page>
-      {children}
-      <Page.Footer className="px-0 fixed bottom-0 w-full bg-white">
+      <div
+        className="pb-24"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 88px)' }}
+      >
+        {children}
+      </div>
+      <Page.Footer className="px-0 fixed bottom-0 w-full bg-white z-50">
         <Navigation />
       </Page.Footer>
     </Page>
