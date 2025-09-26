@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
@@ -24,6 +24,19 @@ type NetworkConfig = {
 
 const DEFAULT_NETWORKS = ['ETH_MAINNET', 'WORLDCHAIN_MAINNET', 'ARB_MAINNET', 'BASE_MAINNET', 'OPT_MAINNET'];
 
+// Cache TTL constants
+const PRICE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const METADATA_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
+// Network priority for faster networks first
+const NETWORK_PRIORITY: Record<string, number> = {
+  'ETH_MAINNET': 1,
+  'WORLDCHAIN_MAINNET': 2,
+  'BASE_MAINNET': 3,
+  'ARB_MAINNET': 4,
+  'OPT_MAINNET': 5,
+};
+
 const ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
 
 const shortenAddress = (address: string, visibleChars = 4) => {
@@ -36,6 +49,28 @@ type TokenMetadataCache = {
   name: string;
   decimals: number;
   logo: string | null;
+  timestamp: number;
+};
+
+type PriceCacheEntry = {
+  price: number;
+  timestamp: number;
+};
+
+type TokenBalance = {
+  contractAddress: string;
+  tokenBalance: string | null;
+};
+
+type TokenBalancesResponse = {
+  tokenBalances: TokenBalance[];
+};
+
+type NetworkResult = {
+  config: NetworkConfig;
+  nativeBalance: bigint;
+  tokenBalances: TokenBalancesResponse;
+  nativePrice?: number;
 };
 
 const NETWORK_LABELS: Record<string, { label: string; nativeSymbol: string }> = {
@@ -88,7 +123,12 @@ function parseNetworks(): NetworkConfig[] {
     });
   }
 
-  return configs;
+  // Sort by priority for faster networks first
+  return configs.sort((a, b) => {
+    const priorityA = NETWORK_PRIORITY[a.network] || 999;
+    const priorityB = NETWORK_PRIORITY[b.network] || 999;
+    return priorityA - priorityB;
+  });
 }
 
 async function getWldUsdPrice(): Promise<number | undefined> {
@@ -119,10 +159,213 @@ export const TokenList = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const callCounter = useRef(0);
+  
+  // Enhanced caches with TTL
   const metadataCache = useRef<Map<string, TokenMetadataCache>>(new Map());
-  const priceCache = useRef<Map<string, number>>(new Map());
+  const priceCache = useRef<Map<string, PriceCacheEntry>>(new Map());
+  
+  // Progressive loading state
+  const [partialResults, setPartialResults] = useState<PortfolioToken[]>([]);
+  const [processedNetworks, setProcessedNetworks] = useState<Set<string>>(new Set());
 
   const alchemyNetworks = useMemo(parseNetworks, []);
+  
+  // Check if this is the user's own address for optimization
+  // const isOwnAddress = walletAddress === session?.data?.user?.walletAddress;
+
+  // Helper functions for cache management
+  const getCachedPrice = useCallback((key: string): number | null => {
+    const cached = priceCache.current.get(key);
+    if (cached && Date.now() - cached.timestamp < PRICE_CACHE_TTL) {
+      return cached.price;
+    }
+    return null;
+  }, []);
+
+  const setCachedPrice = useCallback((key: string, price: number) => {
+    priceCache.current.set(key, { price, timestamp: Date.now() });
+  }, []);
+
+  const getCachedMetadata = useCallback((address: string): TokenMetadataCache | null => {
+    const cached = metadataCache.current.get(address);
+    if (cached && Date.now() - cached.timestamp < METADATA_CACHE_TTL) {
+      return cached;
+    }
+    return null;
+  }, []);
+
+  const setCachedMetadata = useCallback((address: string, metadata: Omit<TokenMetadataCache, 'timestamp'>) => {
+    metadataCache.current.set(address, { ...metadata, timestamp: Date.now() });
+  }, []);
+
+  // Global price fetcher with caching
+  const getGlobalPrice = useCallback(async (symbol: string, alchemy: Alchemy): Promise<number | undefined> => {
+    const cacheKey = `global-${symbol}`;
+    const cached = getCachedPrice(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+
+    try {
+      callCounter.current += 1;
+      console.log(`API call ${callCounter.current}: getTokenPriceBySymbol(${symbol}) - Global cache`);
+      const symbolPrices = await alchemy.prices.getTokenPriceBySymbol([symbol]);
+      const priceEntry = symbolPrices?.data?.[0]?.prices?.[0];
+      if (priceEntry?.value) {
+        const price = Number(priceEntry.value);
+        setCachedPrice(cacheKey, price);
+        return price;
+      }
+    } catch (error) {
+      console.warn(`Failed to fetch global price for ${symbol}`, error);
+    }
+    return undefined;
+  }, [getCachedPrice, setCachedPrice]);
+
+  // Process a single network result
+  const processNetworkResult = useCallback(async (
+    result: NetworkResult,
+    wldPrice: number | undefined,
+    alchemy: Alchemy
+  ): Promise<PortfolioToken[]> => {
+    const { config, nativeBalance, tokenBalances, nativePrice } = result;
+    const networkTokens: PortfolioToken[] = [];
+
+    // Process native balance
+    if (nativeBalance > BigInt(0)) {
+      const nativeAmount = Number(formatUnits(nativeBalance, 18));
+      const nativeUsd = nativePrice !== undefined ? nativeAmount * nativePrice : undefined;
+      networkTokens.push({
+        symbol: config.nativeSymbol,
+        name: `${config.label} Native`,
+        amount: nativeAmount.toLocaleString(undefined, {
+          maximumFractionDigits: 6,
+        }),
+        network: config.label,
+        usdValue: nativeUsd !== undefined
+          ? `$${nativeUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+          : undefined,
+        usdValueNumber: nativeUsd,
+      });
+    }
+
+    // Process token balances
+    const tokensWithBalance = tokenBalances.tokenBalances.filter((balance: TokenBalance) => {
+      try {
+        return BigInt(balance.tokenBalance ?? '0') !== BigInt(0);
+      } catch (err) {
+        console.warn('Failed to parse token balance', err);
+        return false;
+      }
+    });
+
+    if (tokensWithBalance.length === 0) {
+      return networkTokens;
+    }
+
+    // Get metadata for tokens
+    const metadataRequests = tokensWithBalance
+      .map((token: TokenBalance) => token.contractAddress.toLowerCase())
+      .filter((address: string) => !getCachedMetadata(address));
+
+    if (metadataRequests.length > 0) {
+      callCounter.current += metadataRequests.length;
+      console.log(
+        `API calls ${callCounter.current - metadataRequests.length + 1}-${callCounter.current}: getTokenMetadata(batch) for ${config.label}`
+      );
+
+      await Promise.all(
+        metadataRequests.map(async (address: string) => {
+          try {
+            const metadata = await alchemy.core.getTokenMetadata(address as `0x${string}`);
+            setCachedMetadata(address, {
+              symbol: metadata?.symbol || 'UNKNOWN',
+              name: metadata?.name || 'Unknown Token',
+              decimals: metadata?.decimals ?? 18,
+              logo: metadata?.logo || null,
+            });
+          } catch (err) {
+            console.warn('Failed to fetch token metadata', err);
+          }
+        }),
+      );
+    }
+
+    // Process token entries
+    const tokenEntries = tokensWithBalance
+      .map((token: TokenBalance) => {
+        const cache = getCachedMetadata(token.contractAddress.toLowerCase());
+        const decimals = cache?.decimals ?? 18;
+        const raw = token.tokenBalance ?? '0';
+        const amountNumber = Number(formatUnits(BigInt(raw), Number(decimals)));
+        return {
+          contractAddress: token.contractAddress,
+          amountNumber,
+          decimals,
+          symbol: cache?.symbol || 'UNKNOWN',
+          name: cache?.name || 'Unknown Token',
+          logo: cache?.logo || null,
+        };
+      })
+      .filter((entry) => entry.amountNumber > 0);
+
+    if (tokenEntries.length === 0) {
+      return networkTokens;
+    }
+
+    // Get prices for tokens
+    const uncachedPriceRequests: TokenAddressRequest[] = tokenEntries
+      .filter((entry) => !getCachedPrice(`${config.network}-${entry.contractAddress.toLowerCase()}`))
+      .map((entry) => ({
+        network: config.network,
+        address: entry.contractAddress,
+      }));
+
+    if (uncachedPriceRequests.length > 0) {
+      callCounter.current += 1;
+      console.log(
+        `API call ${callCounter.current}: getTokenPriceByAddress(${uncachedPriceRequests.length} tokens on ${config.label})`
+      );
+      try {
+        const priceResponse = await alchemy.prices.getTokenPriceByAddress(uncachedPriceRequests);
+        priceResponse?.data?.forEach((item) => {
+          const priceValue = item.prices?.[0]?.value;
+          if (priceValue) {
+            setCachedPrice(`${config.network}-${item.address.toLowerCase()}`, Number(priceValue));
+          }
+        });
+      } catch (priceError) {
+        console.warn(`Failed to fetch token prices for ${config.label}`, priceError);
+      }
+    }
+
+    // Add token entries to results
+    tokenEntries.forEach((entry) => {
+      const priceFromMap = getCachedPrice(`${config.network}-${entry.contractAddress.toLowerCase()}`);
+      const price = priceFromMap !== null
+        ? priceFromMap
+        : entry.symbol === 'WLD' && wldPrice !== undefined
+          ? wldPrice
+          : undefined;
+      const usdValueNumber = price !== undefined ? entry.amountNumber * price : undefined;
+      
+      networkTokens.push({
+        symbol: entry.symbol,
+        name: entry.name,
+        amount: entry.amountNumber.toLocaleString(undefined, {
+          maximumFractionDigits: 6,
+        }),
+        usdValue: usdValueNumber !== undefined
+          ? `$${usdValueNumber.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+          : undefined,
+        usdValueNumber,
+        network: config.label,
+        logo: entry.logo,
+      });
+    });
+
+    return networkTokens;
+  }, [getCachedMetadata, setCachedMetadata, getCachedPrice, setCachedPrice]);
 
   useEffect(() => {
     const run = async () => {
@@ -132,214 +375,65 @@ export const TokenList = () => {
         setError('Missing NEXT_PUBLIC_ALCHEMY_API_KEY. Add it to your environment.');
         return;
       }
+      
       setLoading(true);
       setError(null);
+      setPartialResults([]);
+      setProcessedNetworks(new Set());
+      
       try {
-        const results: PortfolioToken[] = [];
-
         const wldPrice = await getWldUsdPrice();
 
-        for (const config of alchemyNetworks) {
-          const alchemy = new Alchemy({
-            apiKey,
-            network: config.network,
-          });
+        // Create Alchemy instances for all networks
+        const alchemyInstances = alchemyNetworks.map(config => ({
+          config,
+          alchemy: new Alchemy({ apiKey, network: config.network })
+        }));
 
-          let nativePrice: number | undefined;
-          if (priceCache.current.has(`${config.network}-native-${config.nativeSymbol}`)) {
-            nativePrice = priceCache.current.get(
-              `${config.network}-native-${config.nativeSymbol}`,
-            );
-          } else {
-            try {
-              callCounter.current += 1;
-              console.log(
-                `API call ${callCounter.current}: getTokenPriceBySymbol(${config.nativeSymbol})`,
-              );
-              const symbolPrices = await alchemy.prices.getTokenPriceBySymbol([
-                config.nativeSymbol,
-              ]);
-              const nativePriceEntry = symbolPrices?.data?.[0]?.prices?.[0];
-              if (nativePriceEntry?.value) {
-                nativePrice = Number(nativePriceEntry.value);
-                priceCache.current.set(
-                  `${config.network}-native-${config.nativeSymbol}`,
-                  nativePrice,
-                );
-              }
-            } catch (priceError) {
-              console.warn(`Failed to fetch native price for ${config.label}`, priceError);
-            }
-          }
+        // Get global ETH price once
+        const globalEthPrice = await getGlobalPrice('ETH', alchemyInstances[0].alchemy);
 
+        // Process all networks in parallel
+        const networkPromises = alchemyInstances.map(async ({ config, alchemy }) => {
           try {
-            callCounter.current += 1;
-            console.log(`API call ${callCounter.current}: getBalance(${walletAddress}) on ${config.label}`);
-            const native = await alchemy.core.getBalance(walletAddress);
-            const nativeRaw = BigInt(native.toString());
-            if (nativeRaw > BigInt(0)) {
-              const nativeAmount = Number(formatUnits(nativeRaw, 18));
-              const nativeUsd =
-                nativePrice !== undefined ? nativeAmount * nativePrice : undefined;
-              results.push({
-                symbol: config.nativeSymbol,
-                name: `${config.label} Native`,
-                amount: nativeAmount.toLocaleString(undefined, {
-                  maximumFractionDigits: 6,
-                }),
-                network: config.label,
-                usdValue:
-                  nativeUsd !== undefined
-                    ? `$${nativeUsd.toLocaleString(undefined, {
-                        maximumFractionDigits: 2,
-                      })}`
-                    : undefined,
-                usdValueNumber: nativeUsd,
-              });
-            }
-          } catch (nativeError) {
-            console.warn(`Failed to fetch native balance for ${config.label}`, nativeError);
+            // Parallel balance and token balance calls
+            const [nativeBalance, tokenBalances] = await Promise.all([
+              alchemy.core.getBalance(walletAddress),
+              alchemy.core.getTokenBalances(walletAddress)
+            ]);
+
+            const result: NetworkResult = {
+              config,
+              nativeBalance: BigInt(nativeBalance.toString()),
+              tokenBalances,
+              nativePrice: globalEthPrice
+            };
+
+            // Process this network's results
+            const networkTokens = await processNetworkResult(result, wldPrice, alchemy);
+            
+            // Update processed networks
+            setProcessedNetworks(prev => new Set([...prev, config.network]));
+            
+            // Add to partial results for progressive loading
+            setPartialResults(prev => [...prev, ...networkTokens]);
+            
+            return networkTokens;
+          } catch (error) {
+            console.warn(`Failed to fetch data for ${config.label}`, error);
+            return [];
           }
+        });
 
-          try {
-            callCounter.current += 1;
-            console.log(`API call ${callCounter.current}: getTokenBalances(${walletAddress}) on ${config.label}`);
-            const response = await alchemy.core.getTokenBalances(walletAddress);
-            const tokensWithBalance = response.tokenBalances.filter((balance) => {
-              try {
-                return BigInt(balance.tokenBalance ?? '0') !== BigInt(0);
-              } catch (err) {
-                console.warn('Failed to parse token balance', err);
-                return false;
-              }
-            });
-
-            if (tokensWithBalance.length === 0) {
-              continue;
-            }
-
-            const metadataRequests = tokensWithBalance
-              .map((token) => token.contractAddress.toLowerCase())
-              .filter((address) => !metadataCache.current.has(address));
-
-            if (metadataRequests.length > 0) {
-              callCounter.current += metadataRequests.length;
-              console.log(
-                `API calls ${callCounter.current - metadataRequests.length + 1}-${callCounter.current}: getTokenMetadata(batch)`
-              );
-            }
-
-            await Promise.all(
-              metadataRequests.map(async (address) => {
-                try {
-                  const metadata = await alchemy.core.getTokenMetadata(address as `0x${string}`);
-                  metadataCache.current.set(address, {
-                    symbol: metadata?.symbol || 'UNKNOWN',
-                    name: metadata?.name || 'Unknown Token',
-                    decimals: metadata?.decimals ?? 18,
-                    logo: metadata?.logo || null,
-                  });
-                } catch (err) {
-                  console.warn('Failed to fetch token metadata', err);
-                }
-              }),
-            );
-
-            const tokenEntries = tokensWithBalance
-              .map((token) => {
-                const cache = metadataCache.current.get(token.contractAddress.toLowerCase());
-                const decimals = cache?.decimals ?? 18;
-                const raw = token.tokenBalance ?? '0';
-                const amountNumber = Number(formatUnits(BigInt(raw), Number(decimals)));
-                return {
-                  contractAddress: token.contractAddress,
-                  amountNumber,
-                  decimals,
-                  symbol: cache?.symbol || 'UNKNOWN',
-                  name: cache?.name || 'Unknown Token',
-                  logo: cache?.logo || null,
-                };
-              })
-              .filter((entry) => entry.amountNumber > 0);
-
-            if (tokenEntries.length === 0) {
-              continue;
-            }
-
-            const uncachedPriceRequests: TokenAddressRequest[] = tokenEntries
-              .filter((entry) => !priceCache.current.has(`${config.network}-${entry.contractAddress.toLowerCase()}`))
-              .map((entry) => ({
-                network: config.network,
-                address: entry.contractAddress,
-              }));
-
-            if (uncachedPriceRequests.length > 0) {
-              callCounter.current += 1;
-              console.log(
-                `API call ${callCounter.current}: getTokenPriceByAddress(${uncachedPriceRequests.length} tokens on ${config.label})`
-              );
-              try {
-                const priceResponse = await alchemy.prices.getTokenPriceByAddress(
-                  uncachedPriceRequests,
-                );
-                priceResponse?.data?.forEach((item) => {
-                  const priceValue = item.prices?.[0]?.value;
-                  if (priceValue) {
-                    priceCache.current.set(
-                      `${config.network}-${item.address.toLowerCase()}`,
-                      Number(priceValue),
-                    );
-                  }
-                });
-              } catch (priceError) {
-                console.warn(
-                  `Failed to fetch token prices for ${config.label}`,
-                  priceError,
-                );
-              }
-            }
-
-            tokenEntries.forEach((entry) => {
-              const priceFromMap = priceCache.current.get(
-                `${config.network}-${entry.contractAddress.toLowerCase()}`,
-              );
-              const price =
-                priceFromMap !== undefined
-                  ? priceFromMap
-                  : entry.symbol === 'WLD' && wldPrice !== undefined
-                    ? wldPrice
-                    : undefined;
-              const usdValueNumber =
-                price !== undefined ? entry.amountNumber * price : undefined;
-              results.push({
-                symbol: entry.symbol,
-                name: entry.name,
-                amount: entry.amountNumber.toLocaleString(undefined, {
-                  maximumFractionDigits: 6,
-                }),
-                usdValue:
-                  usdValueNumber !== undefined
-                    ? `$${usdValueNumber.toLocaleString(undefined, {
-                        maximumFractionDigits: 2,
-                      })}`
-                    : undefined,
-                usdValueNumber,
-                network: config.label,
-                logo: entry.logo,
-              });
-            });
-          } catch (tokenError) {
-            console.warn(
-              `Failed to fetch token balances via Alchemy for ${config.label}`,
-              tokenError,
-            );
-          }
-        }
-
-        results.sort(
-          (a, b) => (b.usdValueNumber ?? 0) - (a.usdValueNumber ?? 0),
+        // Wait for all networks to complete
+        const allNetworkResults = await Promise.all(networkPromises);
+        
+        // Flatten and sort final results
+        const finalResults = allNetworkResults.flat().sort(
+          (a, b) => (b.usdValueNumber ?? 0) - (a.usdValueNumber ?? 0)
         );
-        setTokens(results);
+        
+        setTokens(finalResults);
       } catch (e) {
         console.error(e);
         setError('Failed to load balances');
@@ -348,12 +442,13 @@ export const TokenList = () => {
       }
     };
     run();
-  }, [walletAddress, alchemyNetworks]);
+  }, [walletAddress, alchemyNetworks, getGlobalPrice, processNetworkResult]);
 
   const totalValue = useMemo(() => {
-    if (!tokens) return 0;
-    return tokens.reduce((sum, t) => sum + (t.usdValueNumber ?? 0), 0);
-  }, [tokens]);
+    const currentTokens = tokens || partialResults;
+    if (!currentTokens) return 0;
+    return currentTokens.reduce((sum, t) => sum + (t.usdValueNumber ?? 0), 0);
+  }, [tokens, partialResults]);
 
   const formattedTotal = useMemo(
     () =>
@@ -363,6 +458,10 @@ export const TokenList = () => {
       }),
     [totalValue],
   );
+
+  // Show partial results while loading
+  const displayTokens = tokens || partialResults;
+  const isPartiallyLoaded = loading && partialResults.length > 0;
 
   return (
     <div className="w-full space-y-4">
@@ -377,6 +476,11 @@ export const TokenList = () => {
               ? shortenAddress(walletAddress)
               : 'Unknown Wallet'}
         </p>
+        {isPartiallyLoaded && (
+          <p className="text-xs opacity-75 mt-1">
+            Loading... {processedNetworks.size}/{alchemyNetworks.length} networks processed
+          </p>
+        )}
       </div>
 
       <div className="space-y-3">
@@ -386,10 +490,10 @@ export const TokenList = () => {
         )}
         {loading && <p className="text-sm text-gray-500">Loading balances…</p>}
         {error && <p className="text-sm text-red-600">{error}</p>}
-        {!loading && walletAddress && tokens?.length === 0 && (
+        {!loading && walletAddress && displayTokens?.length === 0 && (
           <p className="text-sm text-gray-500">No balances found.</p>
         )}
-        {tokens?.map((token, index) => (
+        {displayTokens?.map((token, index) => (
           <div
             key={index}
             className="flex items-center justify-between p-4 bg-white border-2 border-gray-100 rounded-xl hover:border-gray-200 transition-colors"
