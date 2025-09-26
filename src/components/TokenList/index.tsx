@@ -38,61 +38,34 @@ const MIN_BALANCE_THRESHOLD = 0.000001; // Skip very small balances
 const MAX_TOKENS_PER_NETWORK = 20; // Limit tokens per network for performance
 const NETWORK_TIMEOUT = 5000; // 5 second timeout per network
 
-// Well-known token addresses and their metadata with verified icons
+// Well-known token addresses and their metadata with reliable icons
 const WELL_KNOWN_TOKENS: Record<string, { symbol: string; name: string; iconUrl: string; address?: string }> = {
-  // Native tokens
-  'ETH': { symbol: 'ETH', name: 'Ethereum', iconUrl: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png' },
-  'WLD': { symbol: 'WLD', name: 'Worldcoin', iconUrl: 'https://assets.coingecko.com/coins/images/31079/large/worldcoin.jpeg' },
-  'MATIC': { symbol: 'MATIC', name: 'Polygon', iconUrl: 'https://assets.coingecko.com/coins/images/4713/large/matic-token-icon.png' },
+  // Native tokens - using reliable CDN sources
+  'ETH': { symbol: 'ETH', name: 'Ethereum', iconUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/info/logo.png' },
+  'WLD': { symbol: 'WLD', name: 'Worldcoin', iconUrl: 'https://tokens.build/icon/worldcoin.png' },
+  'MATIC': { symbol: 'MATIC', name: 'Polygon', iconUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/polygon/info/logo.png' },
   
-  // ERC-20 tokens (by contract address) - using correct addresses
-  '0xA0b86a33E6441b8c4C8C0d4B0cF4B4d4F4B4d4F4B': { symbol: 'USDC', name: 'USD Coin', iconUrl: 'https://assets.coingecko.com/coins/images/6319/large/USD_Coin_icon.png' },
-  '0xdAC17F958D2ee523a2206206994597C13D831ec7': { symbol: 'USDT', name: 'Tether USD', iconUrl: 'https://assets.coingecko.com/coins/images/325/large/Tether.png' },
-  '0x6B175474E89094C44Da98b954EedeAC495271d0F': { symbol: 'DAI', name: 'Dai Stablecoin', iconUrl: 'https://assets.coingecko.com/coins/images/9956/large/4943.png' },
-  '0x514910771AF9Ca656af840dff83E8264EcF986CA': { symbol: 'LINK', name: 'Chainlink', iconUrl: 'https://assets.coingecko.com/coins/images/877/large/chainlink-new-logo.png' },
-  '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984': { symbol: 'UNI', name: 'Uniswap', iconUrl: 'https://assets.coingecko.com/coins/images/12504/large/uniswap-uni.png' },
-  '0x7D1AfA7B718fb893dB30A3aBc0Cfc608AaCfeBB0': { symbol: 'MATIC', name: 'Polygon', iconUrl: 'https://assets.coingecko.com/coins/images/4713/large/matic-token-icon.png' },
-  '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599': { symbol: 'WBTC', name: 'Wrapped Bitcoin', iconUrl: 'https://assets.coingecko.com/coins/images/7598/large/wrapped_bitcoin_wbtc.png' },
-  '0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE': { symbol: 'SHIB', name: 'Shiba Inu', iconUrl: 'https://assets.coingecko.com/coins/images/11939/large/shiba.png' },
-  '0x4d224452801ACEd8B2F0aebE155379bb5D594381': { symbol: 'APE', name: 'ApeCoin', iconUrl: 'https://assets.coingecko.com/coins/images/24383/large/apecoin.jpg' },
-  '0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9': { symbol: 'AAVE', name: 'Aave', iconUrl: 'https://assets.coingecko.com/coins/images/12645/large/AAVE.png' },
-  '0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2': { symbol: 'MKR', name: 'Maker', iconUrl: 'https://assets.coingecko.com/coins/images/1364/large/Mark_Maker.png' },
-  '0x0F5D2fB29fb7d3CFeE444a200298f468908cC942': { symbol: 'MANA', name: 'Decentraland', iconUrl: 'https://assets.coingecko.com/coins/images/878/large/decentraland-mana.png' },
-  '0x3845badAde8e6dDD04FcF2C3b1c4C3C3C3C3C3C3': { symbol: 'SAND', name: 'The Sandbox', iconUrl: 'https://assets.coingecko.com/coins/images/12129/large/sandbox_logo.jpg' },
-  '0x15D4c048F83bd7e37d49eA4C83a07267Ec4203dA': { symbol: 'GALA', name: 'Gala', iconUrl: 'https://assets.coingecko.com/coins/images/12493/large/GALA-COINGECKO.png' },
-  '0x4E15361FD6b4BB609Fa63C81A2be19d873717870': { symbol: 'FTM', name: 'Fantom', iconUrl: 'https://assets.coingecko.com/coins/images/4001/large/Fantom_round.png' },
-  '0x6c6EE5e31d828De241282B9606C8e98Ea48526E2': { symbol: 'HOT', name: 'Holo', iconUrl: 'https://assets.coingecko.com/coins/images/3348/large/Holologo_Profile.png' },
-  '0x0bc529c00C6401aEF6D220BE8c6Ea1667F6Ad93e': { symbol: 'YFI', name: 'Yearn.finance', iconUrl: 'https://assets.coingecko.com/coins/images/11849/large/yfi-192x192.png' },
-  '0x0D8775F648430679A709E98d2b0Cb6250d2887EF': { symbol: 'BAT', name: 'Basic Attention Token', iconUrl: 'https://assets.coingecko.com/coins/images/677/large/basic-attention-token.png' },
-  '0x1985365e9f78359a9B6AD760e32412f4a445E862': { symbol: 'REP', name: 'Augur', iconUrl: 'https://assets.coingecko.com/coins/images/309/large/REP.png' },
-  '0xE41d2489571d322189246DaFA5ebDe1F4699F498': { symbol: 'ZRX', name: '0x Protocol', iconUrl: 'https://assets.coingecko.com/coins/images/863/large/0x.png' },
-  
-  // Additional popular tokens with verified icons
-  'USDC.e': { symbol: 'USDC.e', name: 'USD Coin (Bridged)', iconUrl: 'https://assets.coingecko.com/coins/images/6319/large/USD_Coin_icon.png' },
-  'USDT.e': { symbol: 'USDT.e', name: 'Tether USD (Bridged)', iconUrl: 'https://assets.coingecko.com/coins/images/325/large/Tether.png' },
-  'WETH': { symbol: 'WETH', name: 'Wrapped Ethereum', iconUrl: 'https://assets.coingecko.com/coins/images/2518/large/weth.png' },
-  'CRV': { symbol: 'CRV', name: 'Curve DAO Token', iconUrl: 'https://assets.coingecko.com/coins/images/12124/large/Curve.png' },
-  'COMP': { symbol: 'COMP', name: 'Compound', iconUrl: 'https://assets.coingecko.com/coins/images/10775/large/COMP.png' },
-  'SNX': { symbol: 'SNX', name: 'Synthetix', iconUrl: 'https://assets.coingecko.com/coins/images/3406/large/SNX.png' },
-  'SUSHI': { symbol: 'SUSHI', name: 'SushiSwap', iconUrl: 'https://assets.coingecko.com/coins/images/12271/large/512x512_Logo_no_chop.png' },
-  '1INCH': { symbol: '1INCH', name: '1inch', iconUrl: 'https://assets.coingecko.com/coins/images/13469/large/1inch-token.png' },
-  'BAL': { symbol: 'BAL', name: 'Balancer', iconUrl: 'https://assets.coingecko.com/coins/images/11683/large/Balancer.png' },
+  // Additional popular tokens with reliable icons
+  'USDC.e': { symbol: 'USDC.e', name: 'USD Coin (Bridged)', iconUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86a33E6441b8c4C8C0d4B0cF4B4d4F4B4d4F4B/logo.png' },
+  'USDT.e': { symbol: 'USDT.e', name: 'Tether USD (Bridged)', iconUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png' },
+  'WETH': { symbol: 'WETH', name: 'Wrapped Ethereum', iconUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png' },
+  'USDC': { symbol: 'USDC', name: 'USD Coin', iconUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86a33E6441b8c4C8C0d4B0cF4B4d4F4B4d4F4B/logo.png' },
+  'USDT': { symbol: 'USDT', name: 'Tether USD', iconUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png' },
+  'DAI': { symbol: 'DAI', name: 'Dai Stablecoin', iconUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x6B175474E89094C44Da98b954EedeAC495271d0F/logo.png' },
+  'LINK': { symbol: 'LINK', name: 'Chainlink', iconUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x514910771AF9Ca656af840dff83E8264EcF986CA/logo.png' },
+  'UNI': { symbol: 'UNI', name: 'Uniswap', iconUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984/logo.png' },
+  'WBTC': { symbol: 'WBTC', name: 'Wrapped Bitcoin', iconUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599/logo.png' },
+  'AAVE': { symbol: 'AAVE', name: 'Aave', iconUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9/logo.png' },
 };
 
 // Token icon providers (in order of preference)
 const TOKEN_ICON_PROVIDERS = [
-  // LogoKit (most reliable free service)
-  (address: string) => `https://logokit.com/crypto/${address}.png`,
+  // Trust Wallet (most reliable - GitHub CDN)
+  (address: string) => `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/${address}/logo.png`,
   // Tokens.build (free API - good coverage)
   (address: string) => `https://tokens.build/icon/${address}.png`,
-  // Trust Wallet (comprehensive collection)
-  (address: string) => `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/${address}/logo.png`,
   // 1inch (good coverage)
   (address: string) => `https://tokens.1inch.io/${address}.png`,
-  // Moralis (reliable CDN)
-  (address: string) => `https://cdn.moralis.io/eth/${address}.png`,
-  // Alchemy (backup)
-  (address: string) => `https://eth-mainnet.alchemyapi.io/v2/demo/${address}/logo.png`,
 ];
 
 // Network priority for faster networks first
@@ -111,6 +84,15 @@ const NETWORK_ICONS: Record<string, string> = {
   'BASE_MAINNET': '🔵',
   'ARB_MAINNET': '🔺',
   'OPT_MAINNET': '🔴',
+};
+
+// Network names mapping for better display
+const NETWORK_NAMES: Record<string, string> = {
+  'ETH_MAINNET': 'Ethereum',
+  'WORLDCHAIN_MAINNET': 'World Chain',
+  'BASE_MAINNET': 'Base',
+  'ARB_MAINNET': 'Arbitrum',
+  'OPT_MAINNET': 'Optimism',
 };
 
 // Value threshold for hiding tokens
@@ -139,10 +121,10 @@ const TokenIcon = ({ address, symbol, size = 24, className = "" }: {
       return WELL_KNOWN_TOKENS[symbol].iconUrl;
     }
     
-    // Try different providers
+    // Try different providers only if no well-known token found
     if (currentProvider < TOKEN_ICON_PROVIDERS.length) {
       const providerUrl = TOKEN_ICON_PROVIDERS[currentProvider](address);
-      const providerNames = ['LogoKit', 'Tokens.build', 'Trust Wallet', '1inch', 'Moralis', 'Alchemy'];
+      const providerNames = ['Trust Wallet', 'Tokens.build', '1inch'];
       console.log(`🔄 TokenIcon: Trying provider ${currentProvider + 1}/${TOKEN_ICON_PROVIDERS.length} (${providerNames[currentProvider]}) for ${symbol} (${address}):`, providerUrl);
       return providerUrl;
     }
@@ -152,7 +134,16 @@ const TokenIcon = ({ address, symbol, size = 24, className = "" }: {
   }, [address, symbol, currentProvider]);
 
   const handleImageError = useCallback(() => {
-    const providerNames = ['LogoKit', 'Tokens.build', 'Trust Wallet', '1inch', 'Moralis', 'Alchemy'];
+    const providerNames = ['Trust Wallet', 'Tokens.build', '1inch'];
+    
+    // Check if this is a well-known token that failed
+    const isWellKnown = WELL_KNOWN_TOKENS[address] || WELL_KNOWN_TOKENS[symbol];
+    
+    if (isWellKnown) {
+      console.log(`💥 TokenIcon: Well-known token ${symbol} (${address}) failed to load, showing fallback with initial "${symbol.charAt(0)}"`);
+      setImageError(true);
+      return;
+    }
     
     // If we haven't tried all providers yet, try the next one
     if (currentProvider < TOKEN_ICON_PROVIDERS.length - 1) {
@@ -420,7 +411,7 @@ export const TokenList = () => {
 
     // For other tokens, try the first provider (most reliable)
     const iconUrl = TOKEN_ICON_PROVIDERS[0](address);
-    console.log(`🔄 getTokenIconUrl: Using first provider (LogoKit) for ${symbol} (${address}):`, iconUrl);
+    console.log(`🔄 getTokenIconUrl: Using first provider (Trust Wallet) for ${symbol} (${address}):`, iconUrl);
     setCachedIcon(address, iconUrl);
     return iconUrl;
   }, [getCachedIcon, setCachedIcon]);
@@ -838,7 +829,12 @@ export const TokenList = () => {
                     />
                     {/* Chain Icon */}
                     <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-white rounded-full flex items-center justify-center text-xs border border-gray-200">
-                      {NETWORK_ICONS[token.network] || '🔗'}
+                      {(() => {
+                        // Map network label to network key
+                        const networkKey = Object.entries(NETWORK_NAMES).find(([, name]) => name === token.network)?.[0];
+                        console.log(`🔗 Chain icon for ${token.symbol}: network="${token.network}", key="${networkKey}", icon="${NETWORK_ICONS[networkKey || ''] || '🔗'}"`);
+                        return NETWORK_ICONS[networkKey || ''] || '🔗';
+                      })()}
                     </div>
                   </div>
                   <div className="min-w-0 flex-1">
@@ -895,7 +891,11 @@ export const TokenList = () => {
                             />
                             {/* Chain Icon */}
                             <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-white rounded-full flex items-center justify-center text-xs border border-gray-200">
-                              {NETWORK_ICONS[token.network] || '🔗'}
+                              {(() => {
+                                // Map network label to network key
+                                const networkKey = Object.entries(NETWORK_NAMES).find(([, name]) => name === token.network)?.[0];
+                                return NETWORK_ICONS[networkKey || ''] || '🔗';
+                              })()}
                             </div>
                           </div>
                           <div className="min-w-0 flex-1">
