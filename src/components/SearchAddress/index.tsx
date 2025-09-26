@@ -26,6 +26,7 @@ export const SearchAddress = () => {
   const initialAddress = params.get('address') || '';
   const [searchValue, setSearchValue] = useState(initialAddress);
   const [copied, setCopied] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   const debouncedValue = useDebounce(searchValue, 400);
 
@@ -72,6 +73,12 @@ export const SearchAddress = () => {
     }
   };
 
+  const displayValue = useMemo(() => {
+    if (!searchValue) return '';
+    if (!isValidAddress) return searchValue;
+    return `${searchValue.slice(0, 6)}…${searchValue.slice(-4)}`;
+  }, [isValidAddress, searchValue]);
+
   return (
     <div className="w-full">
       <form
@@ -86,19 +93,25 @@ export const SearchAddress = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" width={18} height={18} />
             <input
               type="text"
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
+              value={isEditing ? searchValue : displayValue}
+              onFocus={() => setIsEditing(true)}
+              onBlur={() => setIsEditing(false)}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\s/g, '');
+                setSearchValue(value);
+              }}
               placeholder="Enter or paste any wallet address"
               className="w-full border-none bg-transparent pl-9 pr-20 text-base font-medium text-gray-800 placeholder:text-gray-400 focus:outline-none"
               spellCheck={false}
               autoCapitalize="none"
               autoCorrect="off"
+              readOnly={!isEditing}
             />
             <div className="absolute inset-y-0 right-0 flex items-center gap-2 pr-2">
               <button
                 type="button"
                 onClick={handlePaste}
-                className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1 text-sm font-medium text-blue-600 hover:bg-blue-100 transition-colors"
+                className="rounded-lg border border-blue-200 bg-white px-3 py-1 text-sm font-medium text-blue-600 hover:bg-blue-50 transition-colors shadow-sm"
               >
                 Paste
               </button>
@@ -120,7 +133,6 @@ export const SearchAddress = () => {
           className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-blue-700 shadow-sm disabled:cursor-not-allowed disabled:bg-blue-200"
           disabled={!isValidAddress}
         >
-          <Search width={18} height={18} />
           Search
         </button>
       </form>

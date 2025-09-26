@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
@@ -25,6 +25,18 @@ type NetworkConfig = {
 const DEFAULT_NETWORKS = ['ETH_MAINNET', 'WORLDCHAIN_MAINNET', 'ARB_MAINNET', 'BASE_MAINNET', 'OPT_MAINNET'];
 
 const ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
+
+const shortenAddress = (address: string, visibleChars = 4) => {
+  if (!address || address.length <= visibleChars * 2 + 2) return address;
+  return `${address.slice(0, visibleChars + 2)}…${address.slice(-visibleChars)}`;
+};
+
+type TokenMetadataCache = {
+  symbol: string;
+  name: string;
+  decimals: number;
+  logo: string | null;
+};
 
 const NETWORK_LABELS: Record<string, { label: string; nativeSymbol: string }> = {
   ETH_MAINNET: { label: 'Ethereum Mainnet', nativeSymbol: 'ETH' },
@@ -106,6 +118,9 @@ export const TokenList = () => {
   const [tokens, setTokens] = useState<PortfolioToken[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const callCounter = useRef(0);
+  const metadataCache = useRef<Map<string, TokenMetadataCache>>(new Map());
+  const priceCache = useRef<Map<string, number>>(new Map());
 
   const alchemyNetworks = useMemo(parseNetworks, []);
 
@@ -131,19 +146,35 @@ export const TokenList = () => {
           });
 
           let nativePrice: number | undefined;
-          try {
-            const symbolPrices = await alchemy.prices.getTokenPriceBySymbol([
-              config.nativeSymbol,
-            ]);
-            const nativePriceEntry = symbolPrices?.data?.[0]?.prices?.[0];
-            if (nativePriceEntry?.value) {
-              nativePrice = Number(nativePriceEntry.value);
+          if (priceCache.current.has(`${config.network}-native-${config.nativeSymbol}`)) {
+            nativePrice = priceCache.current.get(
+              `${config.network}-native-${config.nativeSymbol}`,
+            );
+          } else {
+            try {
+              callCounter.current += 1;
+              console.log(
+                `API call ${callCounter.current}: getTokenPriceBySymbol(${config.nativeSymbol})`,
+              );
+              const symbolPrices = await alchemy.prices.getTokenPriceBySymbol([
+                config.nativeSymbol,
+              ]);
+              const nativePriceEntry = symbolPrices?.data?.[0]?.prices?.[0];
+              if (nativePriceEntry?.value) {
+                nativePrice = Number(nativePriceEntry.value);
+                priceCache.current.set(
+                  `${config.network}-native-${config.nativeSymbol}`,
+                  nativePrice,
+                );
+              }
+            } catch (priceError) {
+              console.warn(`Failed to fetch native price for ${config.label}`, priceError);
             }
-          } catch (priceError) {
-            console.warn(`Failed to fetch native price for ${config.label}`, priceError);
           }
 
           try {
+            callCounter.current += 1;
+            console.log(`API call ${callCounter.current}: getBalance(${walletAddress}) on ${config.label}`);
             const native = await alchemy.core.getBalance(walletAddress);
             const nativeRaw = BigInt(native.toString());
             if (nativeRaw > BigInt(0)) {
@@ -171,6 +202,8 @@ export const TokenList = () => {
           }
 
           try {
+            callCounter.current += 1;
+            console.log(`API call ${callCounter.current}: getTokenBalances(${walletAddress}) on ${config.label}`);
             const response = await alchemy.core.getTokenBalances(walletAddress);
             const tokensWithBalance = response.tokenBalances.filter((balance) => {
               try {
@@ -185,36 +218,46 @@ export const TokenList = () => {
               continue;
             }
 
-            const metadataPromises = tokensWithBalance.map((token) =>
-              alchemy.core.getTokenMetadata(token.contractAddress).then((metadata) => ({
-                metadata,
-                token,
-              })),
+            const metadataRequests = tokensWithBalance
+              .map((token) => token.contractAddress.toLowerCase())
+              .filter((address) => !metadataCache.current.has(address));
+
+            if (metadataRequests.length > 0) {
+              callCounter.current += metadataRequests.length;
+              console.log(
+                `API calls ${callCounter.current - metadataRequests.length + 1}-${callCounter.current}: getTokenMetadata(batch)`
+              );
+            }
+
+            await Promise.all(
+              metadataRequests.map(async (address) => {
+                try {
+                  const metadata = await alchemy.core.getTokenMetadata(address as `0x${string}`);
+                  metadataCache.current.set(address, {
+                    symbol: metadata?.symbol || 'UNKNOWN',
+                    name: metadata?.name || 'Unknown Token',
+                    decimals: metadata?.decimals ?? 18,
+                    logo: metadata?.logo || null,
+                  });
+                } catch (err) {
+                  console.warn('Failed to fetch token metadata', err);
+                }
+              }),
             );
 
-            const metadataResults = await Promise.allSettled(metadataPromises);
-
-            const tokenEntries = metadataResults
-              .filter(
-                (result): result is PromiseFulfilledResult<{
-                  metadata: Awaited<ReturnType<typeof alchemy.core.getTokenMetadata>>;
-                  token: (typeof tokensWithBalance)[number];
-                }> => result.status === 'fulfilled',
-              )
-              .map((result) => result.value)
-              .map(({ metadata, token }) => {
-                const decimals = metadata?.decimals ?? 18;
+            const tokenEntries = tokensWithBalance
+              .map((token) => {
+                const cache = metadataCache.current.get(token.contractAddress.toLowerCase());
+                const decimals = cache?.decimals ?? 18;
                 const raw = token.tokenBalance ?? '0';
-                const amountNumber = Number(
-                  formatUnits(BigInt(raw), Number(decimals)),
-                );
+                const amountNumber = Number(formatUnits(BigInt(raw), Number(decimals)));
                 return {
                   contractAddress: token.contractAddress,
                   amountNumber,
                   decimals,
-                  symbol: metadata?.symbol || 'UNKNOWN',
-                  name: metadata?.name || 'Unknown Token',
-                  logo: metadata?.logo || null,
+                  symbol: cache?.symbol || 'UNKNOWN',
+                  name: cache?.name || 'Unknown Token',
+                  logo: cache?.logo || null,
                 };
               })
               .filter((entry) => entry.amountNumber > 0);
@@ -223,31 +266,43 @@ export const TokenList = () => {
               continue;
             }
 
-            const priceRequests: TokenAddressRequest[] = tokenEntries.map((entry) => ({
-              network: config.network,
-              address: entry.contractAddress,
-            }));
+            const uncachedPriceRequests: TokenAddressRequest[] = tokenEntries
+              .filter((entry) => !priceCache.current.has(`${config.network}-${entry.contractAddress.toLowerCase()}`))
+              .map((entry) => ({
+                network: config.network,
+                address: entry.contractAddress,
+              }));
 
-            const priceMap = new Map<string, number>();
-            try {
-              const priceResponse = await alchemy.prices.getTokenPriceByAddress(
-                priceRequests,
+            if (uncachedPriceRequests.length > 0) {
+              callCounter.current += 1;
+              console.log(
+                `API call ${callCounter.current}: getTokenPriceByAddress(${uncachedPriceRequests.length} tokens on ${config.label})`
               );
-              priceResponse?.data?.forEach((item) => {
-                const priceValue = item.prices?.[0]?.value;
-                if (priceValue) {
-                  priceMap.set(item.address.toLowerCase(), Number(priceValue));
-                }
-              });
-            } catch (priceError) {
-              console.warn(
-                `Failed to fetch token prices for ${config.label}`,
-                priceError,
-              );
+              try {
+                const priceResponse = await alchemy.prices.getTokenPriceByAddress(
+                  uncachedPriceRequests,
+                );
+                priceResponse?.data?.forEach((item) => {
+                  const priceValue = item.prices?.[0]?.value;
+                  if (priceValue) {
+                    priceCache.current.set(
+                      `${config.network}-${item.address.toLowerCase()}`,
+                      Number(priceValue),
+                    );
+                  }
+                });
+              } catch (priceError) {
+                console.warn(
+                  `Failed to fetch token prices for ${config.label}`,
+                  priceError,
+                );
+              }
             }
 
             tokenEntries.forEach((entry) => {
-              const priceFromMap = priceMap.get(entry.contractAddress.toLowerCase());
+              const priceFromMap = priceCache.current.get(
+                `${config.network}-${entry.contractAddress.toLowerCase()}`,
+              );
               const price =
                 priceFromMap !== undefined
                   ? priceFromMap
@@ -317,8 +372,10 @@ export const TokenList = () => {
         <p className="text-sm opacity-90 mt-1">
           Viewing:{' '}
           {queryAddress && ADDRESS_REGEX.test(queryAddress)
-            ? queryAddress
-            : walletAddress || 'Unknown Wallet'}
+            ? shortenAddress(queryAddress)
+            : walletAddress
+              ? shortenAddress(walletAddress)
+              : 'Unknown Wallet'}
         </p>
       </div>
 
