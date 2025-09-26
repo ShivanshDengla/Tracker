@@ -30,7 +30,6 @@ const DEFAULT_NETWORKS = ['ETH_MAINNET', 'WORLDCHAIN_MAINNET', 'ARB_MAINNET', 'B
 // Cache TTL constants - optimized for maximum efficiency
 const PRICE_CACHE_TTL = 10 * 60 * 1000; // 10 minutes (increased for better caching)
 const METADATA_CACHE_TTL = 60 * 60 * 1000; // 1 hour (increased for better caching)
-const ICON_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days (icons rarely change)
 const BALANCE_CACHE_TTL = 2 * 60 * 1000; // 2 minutes (balances change frequently)
 
 // Smart loading thresholds
@@ -38,35 +37,6 @@ const MIN_BALANCE_THRESHOLD = 0.000001; // Skip very small balances
 const MAX_TOKENS_PER_NETWORK = 20; // Limit tokens per network for performance
 const NETWORK_TIMEOUT = 5000; // 5 second timeout per network
 
-// Well-known token addresses and their metadata with reliable icons
-const WELL_KNOWN_TOKENS: Record<string, { symbol: string; name: string; iconUrl: string; address?: string }> = {
-  // Native tokens - using reliable CDN sources
-  'ETH': { symbol: 'ETH', name: 'Ethereum', iconUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/info/logo.png' },
-  'WLD': { symbol: 'WLD', name: 'Worldcoin', iconUrl: 'https://tokens.build/icon/worldcoin.png' },
-  'MATIC': { symbol: 'MATIC', name: 'Polygon', iconUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/polygon/info/logo.png' },
-  
-  // Additional popular tokens with reliable icons
-  'USDC.e': { symbol: 'USDC.e', name: 'USD Coin (Bridged)', iconUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86a33E6441b8c4C8C0d4B0cF4B4d4F4B4d4F4B/logo.png' },
-  'USDT.e': { symbol: 'USDT.e', name: 'Tether USD (Bridged)', iconUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png' },
-  'WETH': { symbol: 'WETH', name: 'Wrapped Ethereum', iconUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png' },
-  'USDC': { symbol: 'USDC', name: 'USD Coin', iconUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86a33E6441b8c4C8C0d4B0cF4B4d4F4B4d4F4B/logo.png' },
-  'USDT': { symbol: 'USDT', name: 'Tether USD', iconUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png' },
-  'DAI': { symbol: 'DAI', name: 'Dai Stablecoin', iconUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x6B175474E89094C44Da98b954EedeAC495271d0F/logo.png' },
-  'LINK': { symbol: 'LINK', name: 'Chainlink', iconUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x514910771AF9Ca656af840dff83E8264EcF986CA/logo.png' },
-  'UNI': { symbol: 'UNI', name: 'Uniswap', iconUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984/logo.png' },
-  'WBTC': { symbol: 'WBTC', name: 'Wrapped Bitcoin', iconUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599/logo.png' },
-  'AAVE': { symbol: 'AAVE', name: 'Aave', iconUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9/logo.png' },
-};
-
-// Token icon providers (in order of preference)
-const TOKEN_ICON_PROVIDERS = [
-  // Trust Wallet (most reliable - GitHub CDN)
-  (address: string) => `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/${address}/logo.png`,
-  // Tokens.build (free API - good coverage)
-  (address: string) => `https://tokens.build/icon/${address}.png`,
-  // 1inch (good coverage)
-  (address: string) => `https://tokens.1inch.io/${address}.png`,
-];
 
 // Network priority for faster networks first
 const NETWORK_PRIORITY: Record<string, number> = {
@@ -100,65 +70,17 @@ const HIDE_TOKEN_THRESHOLD = 0.5;
 
 const ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
 
-// Enhanced token icon component with fallback
-const TokenIcon = ({ address, symbol, size = 24, className = "" }: { 
-  address: string; 
+// Simple token icon component using Alchemy metadata
+const TokenIcon = ({ logo, symbol, size = 24, className = "" }: { 
+  logo?: string | null; 
   symbol: string; 
   size?: number; 
   className?: string; 
 }) => {
-  const [currentProvider, setCurrentProvider] = useState(0);
   const [imageError, setImageError] = useState(false);
   
-  const iconUrl = useMemo(() => {
-    // Always try well-known tokens first
-    if (WELL_KNOWN_TOKENS[address]) {
-      console.log(`🎯 TokenIcon: Found well-known token by address for ${symbol} (${address}):`, WELL_KNOWN_TOKENS[address].iconUrl);
-      return WELL_KNOWN_TOKENS[address].iconUrl;
-    }
-    if (WELL_KNOWN_TOKENS[symbol]) {
-      console.log(`🎯 TokenIcon: Found well-known token by symbol for ${symbol}:`, WELL_KNOWN_TOKENS[symbol].iconUrl);
-      return WELL_KNOWN_TOKENS[symbol].iconUrl;
-    }
-    
-    // Try different providers only if no well-known token found
-    if (currentProvider < TOKEN_ICON_PROVIDERS.length) {
-      const providerUrl = TOKEN_ICON_PROVIDERS[currentProvider](address);
-      const providerNames = ['Trust Wallet', 'Tokens.build', '1inch'];
-      console.log(`🔄 TokenIcon: Trying provider ${currentProvider + 1}/${TOKEN_ICON_PROVIDERS.length} (${providerNames[currentProvider]}) for ${symbol} (${address}):`, providerUrl);
-      return providerUrl;
-    }
-    
-    console.log(`❌ TokenIcon: All providers failed for ${symbol} (${address}), showing fallback`);
-    return null;
-  }, [address, symbol, currentProvider]);
-
-  const handleImageError = useCallback(() => {
-    const providerNames = ['Trust Wallet', 'Tokens.build', '1inch'];
-    
-    // Check if this is a well-known token that failed
-    const isWellKnown = WELL_KNOWN_TOKENS[address] || WELL_KNOWN_TOKENS[symbol];
-    
-    if (isWellKnown) {
-      console.log(`💥 TokenIcon: Well-known token ${symbol} (${address}) failed to load, showing fallback with initial "${symbol.charAt(0)}"`);
-      setImageError(true);
-      return;
-    }
-    
-    // If we haven't tried all providers yet, try the next one
-    if (currentProvider < TOKEN_ICON_PROVIDERS.length - 1) {
-      console.log(`⚠️ TokenIcon: Provider ${currentProvider + 1} (${providerNames[currentProvider]}) failed for ${symbol} (${address}), trying next provider`);
-      setCurrentProvider(prev => prev + 1);
-      setImageError(false);
-    } else {
-      // All providers failed, show fallback
-      console.log(`💥 TokenIcon: All ${TOKEN_ICON_PROVIDERS.length} providers failed for ${symbol} (${address}), showing fallback with initial "${symbol.charAt(0)}"`);
-      setImageError(true);
-    }
-  }, [currentProvider, symbol, address]);
-
-  if (imageError || !iconUrl) {
-    console.log(`🔤 TokenIcon: Rendering fallback for ${symbol} (${address}) with initial "${symbol.charAt(0)}"`);
+  if (imageError || !logo) {
+    console.log(`🔤 TokenIcon: Rendering fallback for ${symbol} with initial "${symbol.charAt(0)}"`);
     return (
       <div 
         className={`bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold ${className}`}
@@ -169,15 +91,18 @@ const TokenIcon = ({ address, symbol, size = 24, className = "" }: {
     );
   }
 
-  console.log(`✅ TokenIcon: Rendering image for ${symbol} (${address}) from:`, iconUrl);
+  console.log(`✅ TokenIcon: Rendering image for ${symbol} from Alchemy:`, logo);
   return (
     <Image
-      src={iconUrl}
+      src={logo}
       alt={`${symbol} logo`}
       width={size}
       height={size}
       className={`rounded-full object-cover border border-gray-200 ${className}`}
-      onError={handleImageError}
+      onError={() => {
+        console.log(`💥 TokenIcon: Alchemy logo failed for ${symbol}, showing fallback`);
+        setImageError(true);
+      }}
     />
   );
 };
@@ -195,11 +120,6 @@ type TokenMetadataCache = {
   timestamp: number;
 };
 
-type TokenIconCache = {
-  url: string;
-  timestamp: number;
-  failed: boolean;
-};
 
 type BalanceCache = {
   nativeBalance: bigint;
@@ -318,7 +238,6 @@ export const TokenList = () => {
   // Enhanced caches with TTL
   const metadataCache = useRef<Map<string, TokenMetadataCache>>(new Map());
   const priceCache = useRef<Map<string, PriceCacheEntry>>(new Map());
-  const iconCache = useRef<Map<string, TokenIconCache>>(new Map());
   const balanceCache = useRef<Map<string, BalanceCache>>(new Map());
   
   // Progressive loading state
@@ -327,7 +246,7 @@ export const TokenList = () => {
   const [showAllTokens, setShowAllTokens] = useState(false);
 
   const alchemyNetworks = useMemo(parseNetworks, []);
-  
+
   // Check if this is the user's own address for optimization
   // const isOwnAddress = walletAddress === session?.data?.user?.walletAddress;
 
@@ -356,18 +275,6 @@ export const TokenList = () => {
     metadataCache.current.set(address, { ...metadata, timestamp: Date.now() });
   }, []);
 
-  // Token icon management
-  const getCachedIcon = useCallback((address: string): string | null => {
-    const cached = iconCache.current.get(address);
-    if (cached && !cached.failed && Date.now() - cached.timestamp < ICON_CACHE_TTL) {
-      return cached.url;
-    }
-    return null;
-  }, []);
-
-  const setCachedIcon = useCallback((address: string, url: string, failed = false) => {
-    iconCache.current.set(address, { url, timestamp: Date.now(), failed });
-  }, []);
 
   // Balance cache management
   const getCachedBalance = useCallback((cacheKey: string): BalanceCache | null => {
@@ -382,39 +289,6 @@ export const TokenList = () => {
     balanceCache.current.set(cacheKey, { nativeBalance, tokenBalances, timestamp: Date.now() });
   }, []);
 
-  // Generate token icon URL with fallback system
-  const getTokenIconUrl = useCallback((address: string, symbol: string): string => {
-    console.log(`🔍 getTokenIconUrl: Looking for icon for ${symbol} (${address})`);
-    
-    // Check cache first
-    const cached = getCachedIcon(address);
-    if (cached) {
-      console.log(`💾 getTokenIconUrl: Found cached icon for ${symbol} (${address}):`, cached);
-      return cached;
-    }
-
-    // Check well-known tokens by address first (most accurate)
-    if (WELL_KNOWN_TOKENS[address]) {
-      const tokenInfo = WELL_KNOWN_TOKENS[address];
-      console.log(`🎯 getTokenIconUrl: Found well-known token by address for ${symbol} (${address}):`, tokenInfo.iconUrl);
-      setCachedIcon(address, tokenInfo.iconUrl);
-      return tokenInfo.iconUrl;
-    }
-
-    // Check well-known tokens by symbol for native tokens
-    if (WELL_KNOWN_TOKENS[symbol]) {
-      const tokenInfo = WELL_KNOWN_TOKENS[symbol];
-      console.log(`🎯 getTokenIconUrl: Found well-known token by symbol for ${symbol}:`, tokenInfo.iconUrl);
-      setCachedIcon(address, tokenInfo.iconUrl);
-      return tokenInfo.iconUrl;
-    }
-
-    // For other tokens, try the first provider (most reliable)
-    const iconUrl = TOKEN_ICON_PROVIDERS[0](address);
-    console.log(`🔄 getTokenIconUrl: Using first provider (Trust Wallet) for ${symbol} (${address}):`, iconUrl);
-    setCachedIcon(address, iconUrl);
-    return iconUrl;
-  }, [getCachedIcon, setCachedIcon]);
 
 
   // Global price fetcher with caching
@@ -423,10 +297,10 @@ export const TokenList = () => {
     const cached = getCachedPrice(cacheKey);
     if (cached !== null) {
       return cached;
-    }
+          }
 
-    try {
-      callCounter.current += 1;
+          try {
+            callCounter.current += 1;
       console.log(`API call ${callCounter.current}: getTokenPriceBySymbol(${symbol}) - Global cache`);
       const symbolPrices = await alchemy.prices.getTokenPriceBySymbol([symbol]);
       const priceEntry = symbolPrices?.data?.[0]?.prices?.[0];
@@ -457,20 +331,21 @@ export const TokenList = () => {
       // Skip very small balances to reduce processing
       if (nativeAmount >= MIN_BALANCE_THRESHOLD) {
         const nativeUsd = nativePrice !== undefined ? nativeAmount * nativePrice : undefined;
-        const nativeIconUrl = getTokenIconUrl('native', config.nativeSymbol);
+        // Native tokens don't have logos from Alchemy, use fallback
+        const nativeIconUrl = null;
         
         networkTokens.push({
-          symbol: config.nativeSymbol,
-          name: `${config.label} Native`,
-          amount: nativeAmount.toLocaleString(undefined, {
-            maximumFractionDigits: 6,
-          }),
+                symbol: config.nativeSymbol,
+                name: `${config.label} Native`,
+                amount: nativeAmount.toLocaleString(undefined, {
+                  maximumFractionDigits: 6,
+                }),
           amountNumber: nativeAmount,
-          network: config.label,
+                network: config.label,
           usdValue: nativeUsd !== undefined
             ? `$${nativeUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
-            : undefined,
-          usdValueNumber: nativeUsd,
+                    : undefined,
+                usdValueNumber: nativeUsd,
           logo: nativeIconUrl,
           price: nativePrice,
           contractAddress: 'native',
@@ -481,27 +356,27 @@ export const TokenList = () => {
     // Process token balances with smart filtering
     const tokensWithBalance = tokenBalances.tokenBalances
       .filter((balance: TokenBalance) => {
-        try {
-          return BigInt(balance.tokenBalance ?? '0') !== BigInt(0);
-        } catch (err) {
-          console.warn('Failed to parse token balance', err);
-          return false;
-        }
+              try {
+                return BigInt(balance.tokenBalance ?? '0') !== BigInt(0);
+              } catch (err) {
+                console.warn('Failed to parse token balance', err);
+                return false;
+              }
       })
       .slice(0, MAX_TOKENS_PER_NETWORK); // Limit tokens per network for performance
 
-    if (tokensWithBalance.length === 0) {
+            if (tokensWithBalance.length === 0) {
       return networkTokens;
-    }
+            }
 
     // Batch metadata requests for efficiency
-    const metadataRequests = tokensWithBalance
+            const metadataRequests = tokensWithBalance
       .map((token: TokenBalance) => token.contractAddress.toLowerCase())
       .filter((address: string) => !getCachedMetadata(address));
 
-    if (metadataRequests.length > 0) {
-      callCounter.current += metadataRequests.length;
-      console.log(
+            if (metadataRequests.length > 0) {
+              callCounter.current += metadataRequests.length;
+              console.log(
         `API calls ${callCounter.current - metadataRequests.length + 1}-${callCounter.current}: getTokenMetadata(batch) for ${config.label}`
       );
 
@@ -521,13 +396,13 @@ export const TokenList = () => {
           } | null;
           
           setCachedMetadata(address, {
-            symbol: metadata?.symbol || 'UNKNOWN',
-            name: metadata?.name || 'Unknown Token',
-            decimals: metadata?.decimals ?? 18,
-            logo: metadata?.logo || null,
-          });
-        } catch (err) {
-          console.warn('Failed to fetch token metadata', err);
+                    symbol: metadata?.symbol || 'UNKNOWN',
+                    name: metadata?.name || 'Unknown Token',
+                    decimals: metadata?.decimals ?? 18,
+                    logo: metadata?.logo || null,
+                  });
+                } catch (err) {
+                  console.warn('Failed to fetch token metadata', err);
           // Set default metadata to avoid repeated requests
           setCachedMetadata(address, {
             symbol: 'UNKNOWN',
@@ -542,46 +417,47 @@ export const TokenList = () => {
     }
 
     // Process token entries with smart filtering
-    const tokenEntries = tokensWithBalance
+            const tokenEntries = tokensWithBalance
       .map((token: TokenBalance) => {
         const cache = getCachedMetadata(token.contractAddress.toLowerCase());
-        const decimals = cache?.decimals ?? 18;
-        const raw = token.tokenBalance ?? '0';
-        const amountNumber = Number(formatUnits(BigInt(raw), Number(decimals)));
+                const decimals = cache?.decimals ?? 18;
+                const raw = token.tokenBalance ?? '0';
+                const amountNumber = Number(formatUnits(BigInt(raw), Number(decimals)));
         const symbol = cache?.symbol || 'UNKNOWN';
-        const tokenIconUrl = getTokenIconUrl(token.contractAddress, symbol);
+        // Token icon will come from Alchemy metadata
+        const tokenIconUrl = undefined;
         
-        return {
-          contractAddress: token.contractAddress,
-          amountNumber,
-          decimals,
+                return {
+                  contractAddress: token.contractAddress,
+                  amountNumber,
+                  decimals,
           symbol,
-          name: cache?.name || 'Unknown Token',
+                  name: cache?.name || 'Unknown Token',
           logo: tokenIconUrl,
           price: undefined, // Will be set later
-        };
-      })
+                };
+              })
       .filter((entry) => entry.amountNumber >= MIN_BALANCE_THRESHOLD) // Filter out tiny amounts
       .sort((a, b) => b.amountNumber - a.amountNumber); // Sort by amount for better UX
 
-    if (tokenEntries.length === 0) {
+            if (tokenEntries.length === 0) {
       return networkTokens;
-    }
+            }
 
     // Batch price requests for efficiency
-    const uncachedPriceRequests: TokenAddressRequest[] = tokenEntries
+            const uncachedPriceRequests: TokenAddressRequest[] = tokenEntries
       .filter((entry) => !getCachedPrice(`${config.network}-${entry.contractAddress.toLowerCase()}`))
-      .map((entry) => ({
-        network: config.network,
-        address: entry.contractAddress,
-      }));
+              .map((entry) => ({
+                network: config.network,
+                address: entry.contractAddress,
+              }));
 
-    if (uncachedPriceRequests.length > 0) {
-      callCounter.current += 1;
-      console.log(
-        `API call ${callCounter.current}: getTokenPriceByAddress(${uncachedPriceRequests.length} tokens on ${config.label})`
-      );
-      try {
+            if (uncachedPriceRequests.length > 0) {
+              callCounter.current += 1;
+              console.log(
+                `API call ${callCounter.current}: getTokenPriceByAddress(${uncachedPriceRequests.length} tokens on ${config.label})`
+              );
+              try {
         const timeoutPromise = new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Price timeout')), NETWORK_TIMEOUT)
         );
@@ -594,47 +470,47 @@ export const TokenList = () => {
           }>;
         } | null;
         
-        priceResponse?.data?.forEach((item) => {
-          const priceValue = item.prices?.[0]?.value;
-          if (priceValue) {
+                priceResponse?.data?.forEach((item) => {
+                  const priceValue = item.prices?.[0]?.value;
+                  if (priceValue) {
             setCachedPrice(`${config.network}-${item.address.toLowerCase()}`, Number(priceValue));
-          }
-        });
-      } catch (priceError) {
+                  }
+                });
+              } catch (priceError) {
         console.warn(`Failed to fetch token prices for ${config.label}`, priceError);
-      }
-    }
+              }
+            }
 
     // Add token entries to results
-    tokenEntries.forEach((entry) => {
+            tokenEntries.forEach((entry) => {
       const priceFromMap = getCachedPrice(`${config.network}-${entry.contractAddress.toLowerCase()}`);
       const price = priceFromMap !== null
-        ? priceFromMap
-        : entry.symbol === 'WLD' && wldPrice !== undefined
-          ? wldPrice
-          : undefined;
+                  ? priceFromMap
+                  : entry.symbol === 'WLD' && wldPrice !== undefined
+                    ? wldPrice
+                    : undefined;
       const usdValueNumber = price !== undefined ? entry.amountNumber * price : undefined;
       
       networkTokens.push({
-        symbol: entry.symbol,
-        name: entry.name,
-        amount: entry.amountNumber.toLocaleString(undefined, {
-          maximumFractionDigits: 6,
-        }),
+                symbol: entry.symbol,
+                name: entry.name,
+                amount: entry.amountNumber.toLocaleString(undefined, {
+                  maximumFractionDigits: 6,
+                }),
         amountNumber: entry.amountNumber,
         usdValue: usdValueNumber !== undefined
           ? `$${usdValueNumber.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
-          : undefined,
-        usdValueNumber,
-        network: config.label,
-        logo: entry.logo,
+                    : undefined,
+                usdValueNumber,
+                network: config.label,
+                logo: entry.logo,
         price,
         contractAddress: entry.contractAddress,
-      });
-    });
+              });
+            });
 
     return networkTokens;
-  }, [getCachedMetadata, setCachedMetadata, getCachedPrice, setCachedPrice, getTokenIconUrl]);
+  }, [getCachedMetadata, setCachedMetadata, getCachedPrice, setCachedPrice]);
 
   useEffect(() => {
     const run = async () => {
@@ -737,7 +613,7 @@ export const TokenList = () => {
       }
     };
     run();
-  }, [walletAddress, alchemyNetworks, getGlobalPrice, processNetworkResult, getTokenIconUrl]);
+  }, [walletAddress, alchemyNetworks, getGlobalPrice, processNetworkResult]);
 
   const totalValue = useMemo(() => {
     const currentTokens = tokens || partialResults;
@@ -823,7 +699,7 @@ export const TokenList = () => {
                 <div className="flex items-center space-x-2">
                   <div className="relative">
                     <TokenIcon 
-                      address={token.contractAddress || 'native'} 
+                      logo={token.logo} 
                       symbol={token.symbol} 
                       size={24}
                     />
@@ -850,16 +726,16 @@ export const TokenList = () => {
                   <p className="text-xs text-gray-600">
                     {token.amount}
                   </p>
-                </div>
+              </div>
                 
                 {/* USD Value Column */}
                 <div className="flex items-center">
                   <p className="text-xs font-medium text-gray-800">
-                    {token.usdValue ?? '—'}
-                  </p>
-                </div>
-              </div>
-            ))}
+                {token.usdValue ?? '—'}
+              </p>
+            </div>
+          </div>
+        ))}
             
             {/* Hidden Tokens Dropdown */}
             {categorizedTokens.hiddenTokens.length > 0 && (
@@ -885,7 +761,7 @@ export const TokenList = () => {
                         <div className="flex items-center space-x-2">
                           <div className="relative">
                             <TokenIcon 
-                              address={token.contractAddress || 'native'} 
+                              logo={token.logo} 
                               symbol={token.symbol} 
                               size={20}
                             />
