@@ -1,46 +1,77 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { createPublicClient, formatUnits, http } from 'viem';
-import { worldchain, mainnet } from 'viem/chains';
-
-const ERC20_ABI = [
-  {
-    name: 'balanceOf',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'account', type: 'address' }],
-    outputs: [{ name: '', type: 'uint256' }],
-  },
-  {
-    name: 'decimals',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ name: '', type: 'uint8' }],
-  },
-  {
-    name: 'symbol',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ name: '', type: 'string' }],
-  },
-  {
-    name: 'name',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ name: '', type: 'string' }],
-  },
-];
+import { formatUnits } from 'viem';
+import { Alchemy, Network } from 'alchemy-sdk';
 
 type PortfolioToken = {
   symbol: string;
   name: string;
   amount: string; // formatted human-readable
   usdValue?: string; // formatted USD if price available
+  network: string;
 };
+
+type NetworkConfig = {
+  network: Network;
+  label: string;
+  nativeSymbol: string;
+};
+
+const DEFAULT_NETWORKS = ['ETH_MAINNET', 'WORLDCHAIN_MAINNET', 'ARB_MAINNET', 'BASE_MAINNET', 'OPT_MAINNET'];
+
+const NETWORK_LABELS: Record<string, { label: string; nativeSymbol: string }> = {
+  ETH_MAINNET: { label: 'Ethereum Mainnet', nativeSymbol: 'ETH' },
+  WORLDCHAIN_MAINNET: { label: 'World Chain', nativeSymbol: 'ETH' },
+  WORLDCHAIN_SEPOLIA: { label: 'World Chain Sepolia', nativeSymbol: 'ETH' },
+  MATIC_MAINNET: { label: 'Polygon', nativeSymbol: 'MATIC' },
+  ARB_MAINNET: { label: 'Arbitrum One', nativeSymbol: 'ETH' },
+  OPT_MAINNET: { label: 'Optimism', nativeSymbol: 'ETH' },
+  BASE_MAINNET: { label: 'Base', nativeSymbol: 'ETH' },
+};
+
+function parseNetworks(): NetworkConfig[] {
+  const raw = process.env.NEXT_PUBLIC_ALCHEMY_NETWORKS;
+  const list = raw?.split(',').map((entry) => entry.trim()).filter(Boolean) ?? DEFAULT_NETWORKS;
+
+  const configs: NetworkConfig[] = [];
+
+  for (const value of list) {
+    const normalized = value.trim();
+    if (!normalized) continue;
+
+    const keyCandidate = normalized.toUpperCase().replace(/[-\s]/g, '_');
+    let network: Network | undefined = (Network as Record<string, Network>)[keyCandidate];
+
+    if (!network) {
+      const lower = normalized.toLowerCase();
+      const match = (Object.values(Network) as string[]).find((n) => n === lower);
+      if (match) {
+        network = match as Network;
+      }
+    }
+
+    if (!network) {
+      console.warn(`Unsupported Alchemy network: ${normalized}. Skipping.`);
+      continue;
+    }
+
+    const metadataKey = network.toUpperCase().replace(/[-\s]/g, '_');
+    const mapping =
+      NETWORK_LABELS[metadataKey] ?? NETWORK_LABELS[keyCandidate] ?? {
+        label: network,
+        nativeSymbol: 'ETH',
+      };
+
+    configs.push({
+      network,
+      label: mapping.label,
+      nativeSymbol: mapping.nativeSymbol,
+    });
+  }
+
+  return configs;
+}
 
 async function getWldUsdPrice(): Promise<number | undefined> {
   try {
@@ -67,111 +98,103 @@ export const TokenList = () => {
 
   const walletAddress = session?.data?.user?.walletAddress as `0x${string}` | undefined;
 
-  const { wcClient, ethClient } = useMemo(() => {
-    const wcClient = createPublicClient({
-      chain: worldchain,
-      transport: http(
-        process.env.NEXT_PUBLIC_WORLDCHAIN_RPC ||
-          'https://worldchain-mainnet.g.alchemy.com/public',
-      ),
-    });
-    const ethClient = createPublicClient({
-      chain: mainnet,
-      transport: http(
-        process.env.NEXT_PUBLIC_ETHEREUM_RPC ||
-          'https://cloudflare-eth.com',
-      ),
-    });
-    return { wcClient, ethClient };
-  }, []);
+  const alchemyNetworks = useMemo(parseNetworks, []);
 
   useEffect(() => {
     const run = async () => {
       if (!walletAddress) return;
+        const apiKey = process.env.NEXT_PUBLIC_ALCHEMY_API_KEY;
+        if (!apiKey) {
+          setError('Missing NEXT_PUBLIC_ALCHEMY_API_KEY. Add it to your environment.');
+        return;
+      }
       setLoading(true);
       setError(null);
       try {
         const results: PortfolioToken[] = [];
 
-        // 1) Native balance on World Chain
-        try {
-          const native = await wcClient.getBalance({ address: walletAddress });
-          const nativeAmount = Number(formatUnits(native, 18));
-          results.push({
-            symbol: 'ETH',
-            name: 'World Chain Native',
-            amount: nativeAmount.toLocaleString(undefined, { maximumFractionDigits: 6 }),
+        const wldPrice = await getWldUsdPrice();
+
+        for (const config of alchemyNetworks) {
+          const alchemy = new Alchemy({
+            apiKey,
+            network: config.network,
           });
-        } catch (e) {
-          console.warn('Failed to fetch native WC balance', e);
-        }
 
-        // 2) WLD balance
-        const wldUsd = await getWldUsdPrice();
-        const envWld = process.env.NEXT_PUBLIC_WLD_TOKEN_ADDRESS as `0x${string}` | undefined;
-        if (envWld) {
-          // Use configured WLD on World Chain
+          // Native balance per network
           try {
-            const [rawBalance, decimals, name, symbol] = await Promise.all([
-              wcClient.readContract({ address: envWld, abi: ERC20_ABI, functionName: 'balanceOf', args: [walletAddress] }),
-              wcClient.readContract({ address: envWld, abi: ERC20_ABI, functionName: 'decimals' }),
-              wcClient.readContract({ address: envWld, abi: ERC20_ABI, functionName: 'name' }),
-              wcClient.readContract({ address: envWld, abi: ERC20_ABI, functionName: 'symbol' }),
-            ]);
-            const amount = formatUnits(rawBalance as bigint, Number(decimals));
-            const usd = wldUsd !== undefined ? `$${(Number(amount) * wldUsd).toLocaleString(undefined, { maximumFractionDigits: 2 })}` : undefined;
+            const native = await alchemy.core.getBalance(walletAddress);
+            const nativeAmount = Number(
+              formatUnits(BigInt(native.toString()), 18),
+            );
             results.push({
-              symbol: symbol as string,
-              name: name as string,
-              amount: Number(amount).toLocaleString(undefined, { maximumFractionDigits: 6 }),
-              usdValue: usd,
+              symbol: config.nativeSymbol,
+              name: `${config.label} Native`,
+              amount: nativeAmount.toLocaleString(undefined, {
+                maximumFractionDigits: 6,
+              }),
+              network: config.label,
             });
-          } catch (e) {
-            console.warn('Failed to fetch WLD on WC', e);
+          } catch (nativeError) {
+            console.warn(`Failed to fetch native balance for ${config.label}`, nativeError);
           }
-        } else {
-          // Default to Ethereum mainnet WLD contract
-          const WLD_ETH_MAINNET = '0x163f8c2467924be0ae7b5347228cabf260318753' as `0x${string}`;
-          try {
-            const [rawBalance, decimals, name, symbol] = await Promise.all([
-              ethClient.readContract({ address: WLD_ETH_MAINNET, abi: ERC20_ABI, functionName: 'balanceOf', args: [walletAddress] }),
-              ethClient.readContract({ address: WLD_ETH_MAINNET, abi: ERC20_ABI, functionName: 'decimals' }),
-              ethClient.readContract({ address: WLD_ETH_MAINNET, abi: ERC20_ABI, functionName: 'name' }),
-              ethClient.readContract({ address: WLD_ETH_MAINNET, abi: ERC20_ABI, functionName: 'symbol' }),
-            ]);
-            const amount = formatUnits(rawBalance as bigint, Number(decimals));
-            const usd = wldUsd !== undefined ? `$${(Number(amount) * wldUsd).toLocaleString(undefined, { maximumFractionDigits: 2 })}` : undefined;
-            results.push({
-              symbol: symbol as string,
-              name: name as string,
-              amount: Number(amount).toLocaleString(undefined, { maximumFractionDigits: 6 }),
-              usdValue: usd,
-            });
-          } catch (e) {
-            console.warn('Failed to fetch WLD on ETH mainnet', e);
-          }
-        }
 
-        // 3) USDC on World Chain if configured
-        const envUsdc = process.env.NEXT_PUBLIC_USDC_TOKEN_ADDRESS as `0x${string}` | undefined;
-        if (envUsdc) {
+          // ERC-20 balances per network
           try {
-            const [rawBalance, decimals, name, symbol] = await Promise.all([
-              wcClient.readContract({ address: envUsdc, abi: ERC20_ABI, functionName: 'balanceOf', args: [walletAddress] }),
-              wcClient.readContract({ address: envUsdc, abi: ERC20_ABI, functionName: 'decimals' }),
-              wcClient.readContract({ address: envUsdc, abi: ERC20_ABI, functionName: 'name' }),
-              wcClient.readContract({ address: envUsdc, abi: ERC20_ABI, functionName: 'symbol' }),
-            ]);
-            const amount = formatUnits(rawBalance as bigint, Number(decimals));
-            const usd = `$${Number(amount).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
-            results.push({
-              symbol: symbol as string,
-              name: name as string,
-              amount: Number(amount).toLocaleString(undefined, { maximumFractionDigits: 6 }),
-              usdValue: usd,
+            const response = await alchemy.core.getTokenBalances(walletAddress);
+            const tokensWithBalance = response.tokenBalances.filter((balance) => {
+              try {
+                return BigInt(balance.tokenBalance ?? '0') !== BigInt(0);
+              } catch (err) {
+                console.warn('Failed to parse token balance', err);
+                return false;
+              }
             });
-          } catch (e) {
-            console.warn('Failed to fetch USDC on WC', e);
+
+            const metadataPromises = tokensWithBalance.map((token) =>
+              alchemy.core.getTokenMetadata(token.contractAddress).then((metadata) => ({
+                metadata,
+                token,
+              })),
+            );
+
+            const metadataResults = await Promise.allSettled(metadataPromises);
+
+            for (const result of metadataResults) {
+              if (result.status !== 'fulfilled') {
+                console.warn('Failed to fetch token metadata', result.reason);
+                continue;
+              }
+
+              const { metadata, token } = result.value;
+              const decimals = metadata?.decimals ?? 18;
+
+              try {
+                const raw = token.tokenBalance ?? '0';
+                const amount = Number(formatUnits(BigInt(raw), Number(decimals)));
+                let usdValue: string | undefined;
+
+                if (metadata?.symbol === 'WLD' && wldPrice !== undefined) {
+                  usdValue = `$${(amount * wldPrice).toLocaleString(undefined, {
+                    maximumFractionDigits: 2,
+                  })}`;
+                }
+
+                results.push({
+                  symbol: metadata?.symbol || 'UNKNOWN',
+                  name: metadata?.name || 'Unknown Token',
+                  amount: amount.toLocaleString(undefined, {
+                    maximumFractionDigits: 6,
+                  }),
+                  usdValue,
+                  network: config.label,
+                });
+              } catch (err) {
+                console.warn('Failed to process token balance', err);
+              }
+            }
+          } catch (tokenError) {
+            console.warn(`Failed to fetch token balances via Alchemy for ${config.label}`, tokenError);
           }
         }
 
@@ -184,7 +207,7 @@ export const TokenList = () => {
       }
     };
     run();
-  }, [walletAddress, wcClient, ethClient]);
+  }, [walletAddress, alchemyNetworks]);
 
   const totalValue = useMemo(() => {
     if (!tokens) return 0;
@@ -226,6 +249,7 @@ export const TokenList = () => {
               <div>
                 <p className="font-semibold text-gray-800">{token.symbol}</p>
                 <p className="text-sm text-gray-500">{token.name}</p>
+                <p className="text-xs text-gray-400">{token.network}</p>
               </div>
             </div>
             <div className="text-right">
