@@ -80,54 +80,62 @@ const TokenIcon = ({ logo, symbol, size = 24, className = "" }: {
   const [imageError, setImageError] = useState(false);
   const [currentProvider, setCurrentProvider] = useState(0);
   
-  // Fallback icon providers for tokens without Alchemy logos
-  const fallbackProviders = [
-    // Native token mappings first (these never have contract addresses)
+  // Token icon providers (in order of preference)
+  const iconProviders = useMemo(() => [
+    // 1. CoinGecko (most accurate, ~80% coverage)
     (symbol: string) => {
-      const nativeMappings: Record<string, string> = {
+      const coingeckoMappings: Record<string, string> = {
+        'ETH': 'https://assets.coingecko.com/coins/images/279/large/ethereum.png',
+        'WETH': 'https://assets.coingecko.com/coins/images/2518/large/weth.png',
+        'USDC': 'https://assets.coingecko.com/coins/images/6319/large/USD_Coin_icon.png',
+        'USDT': 'https://assets.coingecko.com/coins/images/325/large/Tether.png',
+        'DAI': 'https://assets.coingecko.com/coins/images/9956/large/4943.png',
+        'LINK': 'https://assets.coingecko.com/coins/images/877/large/chainlink-new-logo.png',
+        'UNI': 'https://assets.coingecko.com/coins/images/12504/large/uniswap-uni.png',
+        'WBTC': 'https://assets.coingecko.com/coins/images/7598/large/wrapped_bitcoin_wbtc.png',
+        'AAVE': 'https://assets.coingecko.com/coins/images/12645/large/AAVE.png',
+        'MKR': 'https://assets.coingecko.com/coins/images/1364/large/Mark_Maker.png',
+        'YFI': 'https://assets.coingecko.com/coins/images/11849/large/yfi-192x192.png',
+        'COMP': 'https://assets.coingecko.com/coins/images/10775/large/COMP.png',
+        'CRV': 'https://assets.coingecko.com/coins/images/12124/large/Curve.png',
+        'SNX': 'https://assets.coingecko.com/coins/images/3406/large/SNX.png',
+        'SUSHI': 'https://assets.coingecko.com/coins/images/12271/large/512x512_Logo_no_chop.png',
+        '1INCH': 'https://assets.coingecko.com/coins/images/13469/large/1inch-token.png',
+        'BAL': 'https://assets.coingecko.com/coins/images/11683/large/Balancer.png',
+        'MATIC': 'https://assets.coingecko.com/coins/images/4713/large/matic-token-icon.png',
+        'WLD': 'https://assets.coingecko.com/coins/images/31079/large/worldcoin.jpeg',
+        'BNB': 'https://assets.coingecko.com/coins/images/825/large/bnb-icon2_2x.png',
+        'AVAX': 'https://assets.coingecko.com/coins/images/12559/large/Avalanche_Circle_RedWhite_Trans.png',
+        'FTM': 'https://assets.coingecko.com/coins/images/4001/large/Fantom_round.png',
+        'ONE': 'https://assets.coingecko.com/coins/images/4344/large/Y88JAze.png',
+        'CRO': 'https://assets.coingecko.com/coins/images/7310/large/cro_token_logo.png',
+      };
+      return coingeckoMappings[symbol.toUpperCase()] || null;
+    },
+    // 2. Trust Wallet (reliable fallback)
+    (symbol: string) => {
+      const trustWalletMappings: Record<string, string> = {
         'ETH': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/info/logo.png',
         'MATIC': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/polygon/info/logo.png',
-        'WLD': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x163f8C2467924be0ae7B5347228CABF260318753/logo.png', // Worldcoin on Ethereum
+        'WLD': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x163f8C2467924be0ae7B5347228CABF260318753/logo.png',
         'BNB': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/info/logo.png',
         'AVAX': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/avalanchec/info/logo.png',
         'FTM': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/fantom/info/logo.png',
         'ONE': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/harmony/info/logo.png',
         'CRO': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/cronos/info/logo.png',
       };
-      return nativeMappings[symbol.toUpperCase()] || null;
+      return trustWalletMappings[symbol.toUpperCase()] || null;
     },
-    // Try by symbol first
+    // 3. Generic symbol-based URLs
     (symbol: string) => `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/${symbol}/logo.png`,
     (symbol: string) => `https://tokens.build/icon/${symbol}.png`,
     (symbol: string) => `https://tokens.1inch.io/${symbol}.png`,
-    // Try with cleaned symbol (remove special chars)
+    // 4. Cleaned symbol (remove special chars)
     (symbol: string) => {
       const cleanSymbol = symbol.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
       return `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/${cleanSymbol}/logo.png`;
     },
-    // Try common token mappings
-    (symbol: string) => {
-      const mappings: Record<string, string> = {
-        'WETH': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png',
-        'USDC': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86a33E6441b8c4C8C0d4B0cF4B4d4F4B4d4F4B/logo.png',
-        'USDT': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png',
-        'DAI': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x6B175474E89094C44Da98b954EedeAC495271d0F/logo.png',
-        'LINK': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x514910771AF9Ca656af840dff83E8264EcF986CA/logo.png',
-        'UNI': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984/logo.png',
-        'WBTC': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599/logo.png',
-        'AAVE': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9/logo.png',
-        'MKR': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2/logo.png',
-        'YFI': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x0bc529c00C6401aEF6D220BE8c6Ea1667F6Ad93e/logo.png',
-        'COMP': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xc00e94Cb662C3520282E6f5717214004A7f26888/logo.png',
-        'CRV': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xD533a949740bb3306d119CC777fa900bA034cd52/logo.png',
-        'SNX': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC011a73ee8576Fb46F5E1c5751cA3B9Fe0af2a6F/logo.png',
-        'SUSHI': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x6B3595068778DD592e39A122f4f5a5cF09C90fE2/logo.png',
-        '1INCH': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x111111111117dC0aa78b770fA6A738034120C302/logo.png',
-        'BAL': 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xba100000625a3754423978a60c9317c58a424e3D/logo.png',
-      };
-      return mappings[symbol.toUpperCase()] || null;
-    },
-  ];
+  ], []);
   
   // Get icon URL - try Alchemy first, then fallback providers
   const iconUrl = useMemo(() => {
@@ -136,20 +144,20 @@ const TokenIcon = ({ logo, symbol, size = 24, className = "" }: {
       return logo;
     }
     
-    // Try fallback providers
-    if (currentProvider < fallbackProviders.length) {
-      const fallbackUrl = fallbackProviders[currentProvider](symbol);
-      if (fallbackUrl) {
-        console.log(`🔄 TokenIcon: Trying fallback provider ${currentProvider + 1} for ${symbol}:`, fallbackUrl);
-        return fallbackUrl;
+    // Try icon providers
+    if (currentProvider < iconProviders.length) {
+      const providerUrl = iconProviders[currentProvider](symbol);
+      if (providerUrl) {
+        console.log(`🔄 TokenIcon: Trying provider ${currentProvider + 1} for ${symbol}:`, providerUrl);
+        return providerUrl;
       } else {
-        console.log(`⏭️ TokenIcon: Skipping fallback provider ${currentProvider + 1} for ${symbol} (no URL)`);
+        console.log(`⏭️ TokenIcon: Skipping provider ${currentProvider + 1} for ${symbol} (no URL)`);
         return null;
       }
     }
     
     return null;
-  }, [logo, symbol, currentProvider]);
+  }, [logo, symbol, currentProvider, iconProviders]);
   
   const handleImageError = useCallback(() => {
     if (logo) {
@@ -157,17 +165,17 @@ const TokenIcon = ({ logo, symbol, size = 24, className = "" }: {
       console.log(`💥 TokenIcon: Alchemy logo failed for ${symbol}, trying fallback providers`);
       setImageError(false);
       setCurrentProvider(0);
-    } else if (currentProvider < fallbackProviders.length - 1) {
-      // Try next fallback provider
-      console.log(`⚠️ TokenIcon: Fallback provider ${currentProvider + 1} failed for ${symbol}, trying next`);
+    } else if (currentProvider < iconProviders.length - 1) {
+      // Try next provider
+      console.log(`⚠️ TokenIcon: Provider ${currentProvider + 1} failed for ${symbol}, trying next`);
       setCurrentProvider(prev => prev + 1);
       setImageError(false);
     } else {
       // All providers failed
-      console.log(`💥 TokenIcon: All ${fallbackProviders.length} providers failed for ${symbol}, showing initial fallback`);
+      console.log(`💥 TokenIcon: All ${iconProviders.length} providers failed for ${symbol}, showing initial fallback`);
       setImageError(true);
     }
-  }, [logo, symbol, currentProvider]);
+  }, [logo, symbol, currentProvider, iconProviders.length]);
   
   if (imageError || !iconUrl) {
     console.log(`🔤 TokenIcon: Rendering initial fallback for ${symbol} with "${symbol.charAt(0)}" - logo:`, logo, 'error:', imageError);
@@ -484,10 +492,10 @@ export const TokenList = () => {
           console.log(`📋 Raw metadata for ${address}:`, metadata);
           
           const processedMetadata = {
-            symbol: metadata?.symbol || 'UNKNOWN',
-            name: metadata?.name || 'Unknown Token',
-            decimals: metadata?.decimals ?? 18,
-            logo: metadata?.logo || null,
+                    symbol: metadata?.symbol || 'UNKNOWN',
+                    name: metadata?.name || 'Unknown Token',
+                    decimals: metadata?.decimals ?? 18,
+                    logo: metadata?.logo || null,
           };
           
           console.log(`✅ Processed metadata for ${address}:`, processedMetadata);
