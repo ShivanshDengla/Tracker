@@ -34,7 +34,7 @@ const BALANCE_CACHE_TTL = 2 * 60 * 1000; // 2 minutes (balances change frequentl
 
 // Smart loading thresholds
 const MIN_BALANCE_THRESHOLD = 0.000001; // Skip very small balances
-const MAX_TOKENS_PER_NETWORK = 20; // Limit tokens per network for performance
+const MAX_TOKENS_PER_NETWORK = 100; // Increased to avoid hiding legit tokens (e.g., PoolTogether)
 const NETWORK_TIMEOUT = 5000; // 5 second timeout per network
 
 
@@ -686,13 +686,18 @@ export const TokenList = () => {
   const categorizedTokens = useMemo(() => {
     if (!displayTokens) return { mainTokens: [], hiddenTokens: [] };
     
-    const mainTokens = displayTokens.filter(token => 
-      (token.usdValueNumber ?? 0) >= HIDE_TOKEN_THRESHOLD
-    );
+  // Show tokens with price OR tokens explicitly recognized (e.g., prize tokens) in main list
+  const mainTokens = displayTokens.filter(token => {
+    const hasUsd = (token.usdValueNumber ?? 0) >= HIDE_TOKEN_THRESHOLD;
+    const looksLikePrize = /prize|pool|prz/i.test(token.symbol) || /Prize|PoolTogether/i.test(token.name ?? '');
+    return hasUsd || looksLikePrize;
+  });
     
-    const hiddenTokens = displayTokens.filter(token => 
-      (token.usdValueNumber ?? 0) < HIDE_TOKEN_THRESHOLD
-    );
+  const hiddenTokens = displayTokens.filter(token => {
+    const hasUsd = (token.usdValueNumber ?? 0) < HIDE_TOKEN_THRESHOLD;
+    const looksLikePrize = /prize|pool|prz/i.test(token.symbol) || /Prize|PoolTogether/i.test(token.name ?? '');
+    return hasUsd && !looksLikePrize;
+  });
     
     return { mainTokens, hiddenTokens };
   }, [displayTokens]);
