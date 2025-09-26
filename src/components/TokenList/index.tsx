@@ -754,11 +754,11 @@ export const TokenList = () => {
                     {/* Chain Icon - only show if not empty */}
                     {(() => {
                       const networkKey = Object.entries(NETWORK_NAMES).find(([, name]) => name === token.network)?.[0];
-                      const chainIcon = NETWORK_ICONS[networkKey || ''];
-                      if (chainIcon) {
+                      const chainIconSrc = NETWORK_ICONS[networkKey || ''];
+                      if (chainIconSrc) {
                         return (
-                          <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-white rounded-full flex items-center justify-center text-xs border border-gray-200">
-                            {chainIcon}
+                          <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-white rounded-full flex items-center justify-center border border-gray-200 overflow-hidden">
+                            <img src={chainIconSrc} alt="" className="w-full h-full object-cover" />
                           </div>
                         );
                       }
@@ -820,11 +820,11 @@ export const TokenList = () => {
                             {/* Chain Icon - only show if not empty */}
                             {(() => {
                               const networkKey = Object.entries(NETWORK_NAMES).find(([, name]) => name === token.network)?.[0];
-                              const chainIcon = NETWORK_ICONS[networkKey || ''];
-                              if (chainIcon) {
+                              const chainIconSrc = NETWORK_ICONS[networkKey || ''];
+                              if (chainIconSrc) {
                                 return (
-                                  <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-white rounded-full flex items-center justify-center text-xs border border-gray-200">
-                                    {chainIcon}
+                                  <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-white rounded-full flex items-center justify-center border border-gray-200 overflow-hidden">
+                                    <img src={chainIconSrc} alt="" className="w-full h-full object-cover" />
                                   </div>
                                 );
                               }
