@@ -47,10 +47,10 @@ const NETWORK_PRIORITY: Record<string, number> = {
   'OPT_MAINNET': 5,
 };
 
-// Network icons mapping
+// Network icons mapping - hide chain icons for now
 const NETWORK_ICONS: Record<string, string> = {
   'ETH_MAINNET': '🔷',
-  'WORLDCHAIN_MAINNET': '🌍',
+  'WORLDCHAIN_MAINNET': '', // Hide world chain icon
   'BASE_MAINNET': '🔵',
   'ARB_MAINNET': '🔺',
   'OPT_MAINNET': '🔴',
@@ -80,7 +80,7 @@ const TokenIcon = ({ logo, symbol, size = 24, className = "" }: {
   const [imageError, setImageError] = useState(false);
   
   if (imageError || !logo) {
-    console.log(`🔤 TokenIcon: Rendering fallback for ${symbol} with initial "${symbol.charAt(0)}"`);
+    console.log(`🔤 TokenIcon: Rendering fallback for ${symbol} with initial "${symbol.charAt(0)}" - logo:`, logo, 'error:', imageError);
     return (
       <div 
         className={`bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold ${className}`}
@@ -395,12 +395,17 @@ export const TokenList = () => {
             logo?: string | null;
           } | null;
           
-          setCachedMetadata(address, {
-                    symbol: metadata?.symbol || 'UNKNOWN',
-                    name: metadata?.name || 'Unknown Token',
-                    decimals: metadata?.decimals ?? 18,
-                    logo: metadata?.logo || null,
-                  });
+          console.log(`📋 Raw metadata for ${address}:`, metadata);
+          
+          const processedMetadata = {
+            symbol: metadata?.symbol || 'UNKNOWN',
+            name: metadata?.name || 'Unknown Token',
+            decimals: metadata?.decimals ?? 18,
+            logo: metadata?.logo || null,
+          };
+          
+          console.log(`✅ Processed metadata for ${address}:`, processedMetadata);
+          setCachedMetadata(address, processedMetadata);
                 } catch (err) {
                   console.warn('Failed to fetch token metadata', err);
           // Set default metadata to avoid repeated requests
@@ -703,15 +708,19 @@ export const TokenList = () => {
                       symbol={token.symbol} 
                       size={24}
                     />
-                    {/* Chain Icon */}
-                    <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-white rounded-full flex items-center justify-center text-xs border border-gray-200">
-                      {(() => {
-                        // Map network label to network key
-                        const networkKey = Object.entries(NETWORK_NAMES).find(([, name]) => name === token.network)?.[0];
-                        console.log(`🔗 Chain icon for ${token.symbol}: network="${token.network}", key="${networkKey}", icon="${NETWORK_ICONS[networkKey || ''] || '🔗'}"`);
-                        return NETWORK_ICONS[networkKey || ''] || '🔗';
-                      })()}
-                    </div>
+                    {/* Chain Icon - only show if not empty */}
+                    {(() => {
+                      const networkKey = Object.entries(NETWORK_NAMES).find(([, name]) => name === token.network)?.[0];
+                      const chainIcon = NETWORK_ICONS[networkKey || ''];
+                      if (chainIcon) {
+                        return (
+                          <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-white rounded-full flex items-center justify-center text-xs border border-gray-200">
+                            {chainIcon}
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-medium text-gray-800 truncate">{token.symbol}</p>
@@ -765,14 +774,19 @@ export const TokenList = () => {
                               symbol={token.symbol} 
                               size={20}
                             />
-                            {/* Chain Icon */}
-                            <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-white rounded-full flex items-center justify-center text-xs border border-gray-200">
-                              {(() => {
-                                // Map network label to network key
-                                const networkKey = Object.entries(NETWORK_NAMES).find(([, name]) => name === token.network)?.[0];
-                                return NETWORK_ICONS[networkKey || ''] || '🔗';
-                              })()}
-                            </div>
+                            {/* Chain Icon - only show if not empty */}
+                            {(() => {
+                              const networkKey = Object.entries(NETWORK_NAMES).find(([, name]) => name === token.network)?.[0];
+                              const chainIcon = NETWORK_ICONS[networkKey || ''];
+                              if (chainIcon) {
+                                return (
+                                  <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-white rounded-full flex items-center justify-center text-xs border border-gray-200">
+                                    {chainIcon}
+                                  </div>
+                                );
+                              }
+                              return null;
+                            })()}
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="text-xs font-medium text-gray-600 truncate">{token.symbol}</p>
