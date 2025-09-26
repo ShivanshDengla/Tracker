@@ -358,6 +358,38 @@ export const TokenList = () => {
     return undefined;
   }, [getCachedPrice, setCachedPrice]);
 
+  // Derive prices for protocol wrapper tokens (simple heuristics)
+  const getDerivedPriceFromSymbol = useCallback(async (
+    symbol: string,
+    alchemy: Alchemy
+  ): Promise<number | undefined> => {
+    const upper = symbol.toUpperCase();
+
+    const normalizeUnderlying = (sym: string): string => {
+      // Map bridged/stable variants to canonical symbols
+      if (sym === 'USDC.E' || sym === 'USDCe') return 'USDC';
+      return sym.replace(/[^A-Z0-9.]/g, '');
+    };
+
+    // PoolTogether prize tokens: PRZ<UNDERLYING>
+    if (upper.startsWith('PRZ')) {
+      const underlying = normalizeUnderlying(upper.slice(3));
+      return getGlobalPrice(underlying || 'USDC', alchemy);
+    }
+
+    // Aave aTokens (aUSDC, amUSDC)
+    if (upper.startsWith('AM')) {
+      const underlying = normalizeUnderlying(upper.slice(2));
+      return getGlobalPrice(underlying, alchemy);
+    }
+    if (upper.startsWith('A')) {
+      const underlying = normalizeUnderlying(upper.slice(1));
+      return getGlobalPrice(underlying, alchemy);
+    }
+
+    return undefined;
+  }, [getGlobalPrice]);
+
   // Smart network processing with optimizations
   const processNetworkResult = useCallback(async (
     result: NetworkResult,
@@ -530,32 +562,43 @@ export const TokenList = () => {
             }
 
     // Add token entries to results
-            tokenEntries.forEach((entry) => {
-      const priceFromMap = getCachedPrice(`${config.network}-${entry.contractAddress.toLowerCase()}`);
-      const price = priceFromMap !== null
-                  ? priceFromMap
-                  : entry.symbol === 'WLD' && wldPrice !== undefined
-                    ? wldPrice
-                    : undefined;
-      const usdValueNumber = price !== undefined ? entry.amountNumber * price : undefined;
-      
-      networkTokens.push({
-                symbol: entry.symbol,
-                name: entry.name,
-                amount: entry.amountNumber.toLocaleString(undefined, {
-                  maximumFractionDigits: 6,
-                }),
-        amountNumber: entry.amountNumber,
-        usdValue: usdValueNumber !== undefined
-          ? `$${usdValueNumber.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
-                    : undefined,
-                usdValueNumber,
-                network: config.label,
-                logo: entry.logo,
-        price,
-        contractAddress: entry.contractAddress,
-              });
-            });
+            for (const entry of tokenEntries) {
+        const priceFromMap = getCachedPrice(`${config.network}-${entry.contractAddress.toLowerCase()}`);
+        let price = priceFromMap !== null
+                    ? priceFromMap
+                    : entry.symbol === 'WLD' && wldPrice !== undefined
+                      ? wldPrice
+                      : undefined;
+
+        // Derive price for known wrappers if missing
+        if (price === undefined) {
+          try {
+            price = await getDerivedPriceFromSymbol(entry.symbol, alchemy);
+            if (price !== undefined) {
+              setCachedPrice(`${config.network}-derived-${entry.symbol}`, price);
+            }
+          } catch {}
+        }
+
+        const usdValueNumber = price !== undefined ? entry.amountNumber * price : undefined;
+        
+        networkTokens.push({
+                  symbol: entry.symbol,
+                  name: entry.name,
+                  amount: entry.amountNumber.toLocaleString(undefined, {
+                    maximumFractionDigits: 6,
+                  }),
+          amountNumber: entry.amountNumber,
+          usdValue: usdValueNumber !== undefined
+            ? `$${usdValueNumber.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+                      : undefined,
+                  usdValueNumber,
+                  network: config.label,
+                  logo: entry.logo,
+          price,
+          contractAddress: entry.contractAddress,
+                });
+            }
 
     return networkTokens;
   }, [getCachedMetadata, setCachedMetadata, getCachedPrice, setCachedPrice]);
@@ -680,27 +723,63 @@ export const TokenList = () => {
 
   // Show partial results while loading
   const displayTokens = tokens || partialResults;
+
+  // Group tokens by popular protocols (e.g., PoolTogether)
+  const groupedTokens = useMemo(() => {
+    if (!displayTokens) return [] as PortfolioToken[];
+    const poolRegex = /(pooltogether|prize|prz)/i;
+
+    const poolTokens: PortfolioToken[] = [];
+    const others: PortfolioToken[] = [];
+    for (const t of displayTokens) {
+      const tokenName: string = (t as PortfolioToken).name ?? '';
+      if (poolRegex.test(t.symbol) || poolRegex.test(tokenName)) {
+        poolTokens.push(t);
+      } else {
+        others.push(t);
+      }
+    }
+
+    if (poolTokens.length === 0) return displayTokens;
+
+    const totalUsd = poolTokens.reduce((sum, t) => sum + (t.usdValueNumber ?? 0), 0);
+
+    const groupToken: PortfolioToken = {
+      symbol: 'PoolTogether',
+      name: 'PoolTogether',
+      amount: `${poolTokens.length} pos`,
+      amountNumber: 0,
+      usdValueNumber: totalUsd,
+      usdValue: `$${totalUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
+      network: 'PoolTogether',
+      logo: null,
+      price: undefined,
+      contractAddress: undefined,
+    };
+
+    return [groupToken, ...others];
+  }, [displayTokens]);
   const isPartiallyLoaded = loading && partialResults.length > 0;
 
   // Categorize tokens by value
   const categorizedTokens = useMemo(() => {
-    if (!displayTokens) return { mainTokens: [], hiddenTokens: [] };
+    if (!groupedTokens) return { mainTokens: [], hiddenTokens: [] } as { mainTokens: PortfolioToken[]; hiddenTokens: PortfolioToken[] };
     
   // Show tokens with price OR tokens explicitly recognized (e.g., prize tokens) in main list
-  const mainTokens = displayTokens.filter(token => {
+  const mainTokens = groupedTokens.filter(token => {
     const hasUsd = (token.usdValueNumber ?? 0) >= HIDE_TOKEN_THRESHOLD;
     const looksLikePrize = /prize|pool|prz/i.test(token.symbol) || /Prize|PoolTogether/i.test(token.name ?? '');
     return hasUsd || looksLikePrize;
   });
     
-  const hiddenTokens = displayTokens.filter(token => {
+  const hiddenTokens = groupedTokens.filter(token => {
     const hasUsd = (token.usdValueNumber ?? 0) < HIDE_TOKEN_THRESHOLD;
     const looksLikePrize = /prize|pool|prz/i.test(token.symbol) || /Prize|PoolTogether/i.test(token.name ?? '');
     return hasUsd && !looksLikePrize;
   });
     
     return { mainTokens, hiddenTokens };
-  }, [displayTokens]);
+  }, [groupedTokens]);
 
   return (
     <div className="w-full space-y-4">
