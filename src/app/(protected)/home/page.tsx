@@ -21,7 +21,7 @@ export default async function Home() {
           }
         />
       </Page.Header>
-      <Page.Main className="flex flex-col items-center justify-start gap-6 mb-16">
+      <Page.Main className="flex flex-col items-center justify-start gap-6 pb-24 md:pb-28">
         <SearchAddress />
         <TokenList />
       </Page.Main>

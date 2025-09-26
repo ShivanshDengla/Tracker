@@ -15,6 +15,7 @@ export const Navigation = () => {
     <nav
       className="w-full border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900"
       style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 6px)' }}
+      aria-label="Bottom navigation"
     >
       <div className="mx-auto max-w-screen-sm grid grid-cols-2 gap-1 py-2 px-4">
         <Link

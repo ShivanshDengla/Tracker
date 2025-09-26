@@ -10,7 +10,7 @@ export default async function AnalyzePage() {
       <Page.Header className="p-0">
         <TopBar title="Analyze" />
       </Page.Header>
-      <Page.Main className="flex flex-col gap-4 mb-16">
+      <Page.Main className="flex flex-col gap-4 pb-24 md:pb-28">
         <section className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4">
           <h2 className="text-base font-semibold mb-1">Overview</h2>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">

@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
@@ -287,6 +287,7 @@ export const TokenList = () => {
   const [partialResults, setPartialResults] = useState<PortfolioToken[]>([]);
   const [processedNetworks, setProcessedNetworks] = useState<Set<string>>(new Set());
   const [showAllTokens, setShowAllTokens] = useState(false);
+  const [showPoolTogether, setShowPoolTogether] = useState(false);
 
   const alchemyNetworks = useMemo(parseNetworks, []);
 
@@ -724,6 +725,16 @@ export const TokenList = () => {
   // Show partial results while loading
   const displayTokens = tokens || partialResults;
 
+  // Extract PoolTogether/prize tokens for optional expansion rendering
+  const poolTokensList = useMemo(() => {
+    if (!displayTokens) return [] as PortfolioToken[];
+    const poolRegex = /(pooltogether|prize|prz)/i;
+    return (displayTokens as PortfolioToken[]).filter((t) => {
+      const tokenName = (t.name ?? '');
+      return poolRegex.test(t.symbol) || poolRegex.test(tokenName);
+    });
+  }, [displayTokens]);
+
   // Group tokens by popular protocols (e.g., PoolTogether)
   const groupedTokens = useMemo(() => {
     if (!displayTokens) return [] as PortfolioToken[];
@@ -823,10 +834,10 @@ export const TokenList = () => {
             
             {/* Main Tokens */}
             {categorizedTokens.mainTokens.map((token, index) => (
-              <div
-                key={`${token.contractAddress}-${token.network}-${index}`}
-                className="grid grid-cols-3 gap-4 px-4 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors"
-              >
+              <Fragment key={`${token.contractAddress}-${token.network}-${index}`}>
+                <div
+                  className="grid grid-cols-3 gap-4 px-4 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors"
+                >
                 {/* Asset Column */}
                 <div className="flex items-center space-x-2">
                   <div className="relative">
@@ -859,19 +870,72 @@ export const TokenList = () => {
                 
                 {/* Amount Column */}
                 <div className="flex items-center">
-                  <p className="text-xs text-gray-600">
-                    {token.amount}
-                  </p>
-              </div>
+                  {token.symbol === 'PoolTogether' ? (
+                    <button
+                      onClick={() => setShowPoolTogether((v) => !v)}
+                      className="text-xs text-blue-600 hover:underline"
+                    >
+                      {showPoolTogether ? 'Hide positions' : `View positions (${poolTokensList.length})`}
+                    </button>
+                  ) : (
+                    <p className="text-xs text-gray-600">
+                      {token.amount}
+                    </p>
+                  )}
+                </div>
                 
                 {/* USD Value Column */}
                 <div className="flex items-center">
                   <p className="text-xs font-medium text-gray-800">
-                {token.usdValue ?? '—'}
-              </p>
-            </div>
-          </div>
-        ))}
+                    {token.usdValue ?? '—'}
+                  </p>
+                </div>
+                </div>
+
+                {/* Inline expanded PoolTogether positions */}
+                {token.symbol === 'PoolTogether' && showPoolTogether && poolTokensList.length > 0 && (
+                  <div className="bg-white">
+                    {poolTokensList.slice(0, 6).map((pt, idx) => (
+                      <div
+                        key={`pt-${pt.contractAddress}-${pt.network}-${idx}`}
+                        className="grid grid-cols-3 gap-4 px-6 py-2 border-b border-gray-50 last:border-b-0"
+                      >
+                        {/* Asset Column */}
+                        <div className="flex items-center space-x-2">
+                          <div className="relative">
+                            <TokenIcon logo={pt.logo} symbol={pt.symbol} size={20} />
+                            {(() => {
+                              const networkKey = Object.entries(NETWORK_NAMES).find(([, name]) => name === pt.network)?.[0];
+                              const chainIconSrc = NETWORK_ICONS[networkKey || ''];
+                              if (chainIconSrc) {
+                                return (
+                                  <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-white rounded-full flex items-center justify-center border border-gray-200 overflow-hidden">
+                                    <img src={chainIconSrc} alt="" className="w-full h-full object-cover" />
+                                  </div>
+                                );
+                              }
+                              return null;
+                            })()}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-medium text-gray-700 truncate">{pt.symbol}</p>
+                            <p className="text-[11px] text-gray-400 truncate">{pt.name ?? 'PoolTogether'}</p>
+                          </div>
+                        </div>
+                        {/* Amount Column */}
+                        <div className="flex items-center">
+                          <p className="text-xs text-gray-600">{pt.amount}</p>
+                        </div>
+                        {/* USD Value Column */}
+                        <div className="flex items-center">
+                          <p className="text-xs text-gray-700">{pt.usdValue ?? '—'}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Fragment>
+            ))}
             
             {/* Hidden Tokens Dropdown */}
             {categorizedTokens.hiddenTokens.length > 0 && (
