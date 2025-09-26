@@ -10,10 +10,13 @@ type PortfolioToken = {
   symbol: string;
   name: string;
   amount: string; // formatted human-readable
+  amountNumber: number; // raw amount for calculations
   usdValue?: string; // formatted USD if price available
   network: string;
   usdValueNumber?: number;
   logo?: string | null;
+  price?: number;
+  contractAddress?: string;
 };
 
 type NetworkConfig = {
@@ -57,6 +60,18 @@ const NETWORK_PRIORITY: Record<string, number> = {
   'ARB_MAINNET': 4,
   'OPT_MAINNET': 5,
 };
+
+// Network icons mapping
+const NETWORK_ICONS: Record<string, string> = {
+  'ETH_MAINNET': '🔷',
+  'WORLDCHAIN_MAINNET': '🌍',
+  'BASE_MAINNET': '🔵',
+  'ARB_MAINNET': '🔺',
+  'OPT_MAINNET': '🔴',
+};
+
+// Value threshold for hiding tokens
+const HIDE_TOKEN_THRESHOLD = 0.5;
 
 const ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
 
@@ -202,6 +217,7 @@ export const TokenList = () => {
   // Progressive loading state
   const [partialResults, setPartialResults] = useState<PortfolioToken[]>([]);
   const [processedNetworks, setProcessedNetworks] = useState<Set<string>>(new Set());
+  const [showAllTokens, setShowAllTokens] = useState(false);
 
   const alchemyNetworks = useMemo(parseNetworks, []);
   
@@ -348,12 +364,15 @@ export const TokenList = () => {
           amount: nativeAmount.toLocaleString(undefined, {
             maximumFractionDigits: 6,
           }),
+          amountNumber: nativeAmount,
           network: config.label,
           usdValue: nativeUsd !== undefined
             ? `$${nativeUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
             : undefined,
           usdValueNumber: nativeUsd,
           logo: nativeIconUrl,
+          price: nativePrice,
+          contractAddress: 'native',
         });
       }
     }
@@ -438,6 +457,7 @@ export const TokenList = () => {
           symbol,
           name: cache?.name || 'Unknown Token',
           logo: tokenIconUrl,
+          price: undefined, // Will be set later
         };
       })
       .filter((entry) => entry.amountNumber >= MIN_BALANCE_THRESHOLD) // Filter out tiny amounts
@@ -500,12 +520,15 @@ export const TokenList = () => {
         amount: entry.amountNumber.toLocaleString(undefined, {
           maximumFractionDigits: 6,
         }),
+        amountNumber: entry.amountNumber,
         usdValue: usdValueNumber !== undefined
           ? `$${usdValueNumber.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
           : undefined,
         usdValueNumber,
         network: config.label,
         logo: entry.logo,
+        price,
+        contractAddress: entry.contractAddress,
       });
     });
 
@@ -634,6 +657,21 @@ export const TokenList = () => {
   const displayTokens = tokens || partialResults;
   const isPartiallyLoaded = loading && partialResults.length > 0;
 
+  // Categorize tokens by value
+  const categorizedTokens = useMemo(() => {
+    if (!displayTokens) return { mainTokens: [], hiddenTokens: [] };
+    
+    const mainTokens = displayTokens.filter(token => 
+      (token.usdValueNumber ?? 0) >= HIDE_TOKEN_THRESHOLD
+    );
+    
+    const hiddenTokens = displayTokens.filter(token => 
+      (token.usdValueNumber ?? 0) < HIDE_TOKEN_THRESHOLD
+    );
+    
+    return { mainTokens, hiddenTokens };
+  }, [displayTokens]);
+
   return (
     <div className="w-full space-y-4">
       <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl p-6 text-white">
@@ -664,47 +702,147 @@ export const TokenList = () => {
         {!loading && walletAddress && displayTokens?.length === 0 && (
           <p className="text-sm text-gray-500">No balances found.</p>
         )}
-        {displayTokens?.map((token, index) => (
-          <div
-            key={index}
-            className="flex items-center justify-between p-4 bg-white border-2 border-gray-100 rounded-xl hover:border-gray-200 transition-colors"
-          >
-            <div className="flex items-center space-x-3">
-              {token.logo ? (
-                <Image
-                  src={token.logo}
-                  alt={`${token.symbol} logo`}
-                  width={40}
-                  height={40}
-                  className="rounded-full object-cover border border-gray-200"
-                  onError={(e) => {
-                    // Fallback to initial if image fails to load
-                    const target = e.target as HTMLImageElement;
-                    target.style.display = 'none';
-                    const fallback = target.nextElementSibling as HTMLElement;
-                    if (fallback) fallback.style.display = 'flex';
-                  }}
-                />
-              ) : null}
-              <div 
-                className={`w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-sm ${token.logo ? 'hidden' : 'flex'}`}
+        
+        {/* Table Header */}
+        {categorizedTokens.mainTokens.length > 0 && (
+          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+            <div className="grid grid-cols-3 gap-4 px-4 py-3 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-600 uppercase tracking-wide">
+              <div>Asset / Amount</div>
+              <div>Price</div>
+              <div>USD Value</div>
+            </div>
+            
+            {/* Main Tokens */}
+            {categorizedTokens.mainTokens.map((token, index) => (
+              <div
+                key={`${token.contractAddress}-${token.network}-${index}`}
+                className="grid grid-cols-3 gap-4 px-4 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors"
               >
-                {token.symbol.charAt(0)}
+                {/* Asset / Amount Column */}
+                <div className="flex items-center space-x-3">
+                  <div className="relative">
+                    {token.logo ? (
+                      <Image
+                        src={token.logo}
+                        alt={`${token.symbol} logo`}
+                        width={32}
+                        height={32}
+                        className="rounded-full object-cover border border-gray-200"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const fallback = target.nextElementSibling as HTMLElement;
+                          if (fallback) fallback.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div 
+                      className={`w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-xs ${token.logo ? 'hidden' : 'flex'}`}
+                    >
+                      {token.symbol.charAt(0)}
+                    </div>
+                    {/* Chain Icon */}
+                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center text-xs border border-gray-200">
+                      {NETWORK_ICONS[token.network] || '🔗'}
+                    </div>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-gray-800 truncate">{token.symbol}</p>
+                    <p className="text-xs text-gray-500 truncate">{token.amount}</p>
+                  </div>
+                </div>
+                
+                {/* Price Column */}
+                <div className="flex items-center">
+                  <p className="text-sm text-gray-600">
+                    {token.price ? `$${token.price.toLocaleString(undefined, { maximumFractionDigits: 4 })}` : '—'}
+                  </p>
+                </div>
+                
+                {/* USD Value Column */}
+                <div className="flex items-center">
+                  <p className="text-sm font-medium text-gray-800">
+                    {token.usdValue ?? '—'}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="font-semibold text-gray-800">{token.symbol}</p>
-                <p className="text-sm text-gray-500">{token.name}</p>
-                <p className="text-xs text-gray-400">{token.network}</p>
+            ))}
+            
+            {/* Hidden Tokens Dropdown */}
+            {categorizedTokens.hiddenTokens.length > 0 && (
+              <div className="border-t border-gray-200">
+                <button
+                  onClick={() => setShowAllTokens(!showAllTokens)}
+                  className="w-full px-4 py-3 text-left text-sm text-gray-600 hover:bg-gray-50 transition-colors flex items-center justify-between"
+                >
+                  <span>See All Tokens ({categorizedTokens.hiddenTokens.length})</span>
+                  <span className={`transform transition-transform ${showAllTokens ? 'rotate-180' : ''}`}>
+                    ▼
+                  </span>
+                </button>
+                
+                {showAllTokens && (
+                  <div className="border-t border-gray-100">
+                    {categorizedTokens.hiddenTokens.map((token, index) => (
+                      <div
+                        key={`hidden-${token.contractAddress}-${token.network}-${index}`}
+                        className="grid grid-cols-3 gap-4 px-4 py-2 border-b border-gray-50 last:border-b-0 hover:bg-gray-50 transition-colors"
+                      >
+                        {/* Asset / Amount Column */}
+                        <div className="flex items-center space-x-2">
+                          <div className="relative">
+                            {token.logo ? (
+                              <Image
+                                src={token.logo}
+                                alt={`${token.symbol} logo`}
+                                width={24}
+                                height={24}
+                                className="rounded-full object-cover border border-gray-200"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                  const fallback = target.nextElementSibling as HTMLElement;
+                                  if (fallback) fallback.style.display = 'flex';
+                                }}
+                              />
+                            ) : null}
+                            <div 
+                              className={`w-6 h-6 bg-gradient-to-br from-gray-400 to-gray-500 rounded-full flex items-center justify-center text-white font-bold text-xs ${token.logo ? 'hidden' : 'flex'}`}
+                            >
+                              {token.symbol.charAt(0)}
+                            </div>
+                            {/* Chain Icon */}
+                            <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-white rounded-full flex items-center justify-center text-xs border border-gray-200">
+                              {NETWORK_ICONS[token.network] || '🔗'}
+                            </div>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-medium text-gray-600 truncate">{token.symbol}</p>
+                            <p className="text-xs text-gray-400 truncate">{token.amount}</p>
+                          </div>
+                        </div>
+                        
+                        {/* Price Column */}
+                        <div className="flex items-center">
+                          <p className="text-xs text-gray-500">
+                            {token.price ? `$${token.price.toLocaleString(undefined, { maximumFractionDigits: 4 })}` : '—'}
+                          </p>
+                        </div>
+                        
+                        {/* USD Value Column */}
+                        <div className="flex items-center">
+                          <p className="text-xs text-gray-500">
+                            {token.usdValue ?? '<$0.01'}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-            <div className="text-right">
-              <p className="font-semibold text-gray-800">{token.amount}</p>
-              <p className="text-sm text-gray-500">
-                {token.usdValue ?? '—'}
-              </p>
-            </div>
+            )}
           </div>
-        ))}
+        )}
       </div>
     </div>
   );
