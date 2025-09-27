@@ -18,11 +18,11 @@ export const Navigation = () => {
       style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 6px)' }}
       aria-label="Bottom navigation"
     >
-      <div className="mx-auto max-w-screen-sm grid grid-cols-2 gap-1 py-3 px-4 mt-1">
+      <div className="mx-auto max-w-screen-sm grid grid-cols-2 gap-1 py-2 px-4 mt-2">
         <Link
           href={{ pathname: '/home', query: params?.toString() ? Object.fromEntries(params!.entries()) : undefined }}
           className={clsx(
-            'flex flex-col items-center justify-center gap-1 rounded-md py-2',
+            'flex flex-col items-center justify-center gap-1 rounded-md py-1.5',
             isTracker ? 'text-white font-semibold bg-blue-600' : 'text-zinc-500 dark:text-zinc-400'
           )}
           aria-current={isTracker ? 'page' : undefined}
@@ -38,7 +38,7 @@ export const Navigation = () => {
         <Link
           href={{ pathname: '/analyze', query: params?.toString() ? Object.fromEntries(params!.entries()) : undefined }}
           className={clsx(
-            'flex flex-col items-center justify-center gap-1 rounded-md py-2',
+            'flex flex-col items-center justify-center gap-1 rounded-md py-1.5',
             isAnalyze ? 'text-white font-semibold bg-blue-600' : 'text-zinc-500 dark:text-zinc-400'
           )}
           aria-current={isAnalyze ? 'page' : undefined}

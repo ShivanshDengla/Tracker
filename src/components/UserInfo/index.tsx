@@ -52,7 +52,7 @@ export const SelectedWallet = () => {
         disabled={isMyWallet}
         title={isMyWallet ? 'Already showing your wallet' : 'Switch to my wallet'}
       >
-        My Wallet
+        Switch to My Wallet
       </button>
     </div>
   );

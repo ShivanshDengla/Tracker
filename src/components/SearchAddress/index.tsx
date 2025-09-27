@@ -174,7 +174,7 @@ export const SearchAddress = () => {
             )}
             <button
               type="submit"
-              className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 shadow-sm disabled:cursor-not-allowed disabled:bg-blue-200"
+              className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 shadow-sm disabled:cursor-not-allowed disabled:bg-blue-200"
               disabled={!isValidAddress}
             >
               Search

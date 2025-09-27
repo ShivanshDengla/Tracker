@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import { Alchemy, Network, type TokenAddressRequest } from 'alchemy-sdk';
@@ -70,7 +69,6 @@ export function HealthScore() {
   const params = useSearchParams();
   const queryAddress = params.get('address');
   const walletAddress = (queryAddress && ADDRESS_REGEX.test(queryAddress) ? queryAddress : undefined) || (data?.user?.walletAddress as `0x${string}` | undefined);
-  const [copied, setCopied] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -218,19 +216,22 @@ export function HealthScore() {
     return { score, grade, totalUsd, topSymbol, topShare, stableShare, chains };
   }, [tokens]);
 
-  const shorten = (addr: string, n = 4) => {
-    if (!addr) return '';
-    return `${addr.slice(0, n + 2)}…${addr.slice(-n)}`;
-  };
+  // Compute available WLD across networks
+  const availableWld = useMemo(() => {
+    if (!tokens) return 0;
+    return tokens
+      .filter((t) => (t.symbol || '').toUpperCase() === 'WLD')
+      .reduce((sum, t) => sum + (t.amount || 0), 0);
+  }, [tokens]);
 
-  const onCopy = async () => {
-    if (!walletAddress) return;
-    try {
-      await navigator.clipboard.writeText(walletAddress);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {}
-  };
+  const openPoolTogether = useCallback(() => {
+    // Universal deeplink to PoolTogether mini app. If World App is installed, it opens in-app.
+    const appId = 'app_85f4c411dc00aadabc96cce7b3a77219';
+    const url = `https://world.org/mini-app?app_id=${encodeURIComponent(appId)}`;
+    if (typeof window !== 'undefined') {
+      window.location.href = url;
+    }
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -243,10 +244,18 @@ export function HealthScore() {
         {summary ? (
           <div className="mt-3 flex items-center gap-4">
             <div className={`w-16 h-16 rounded-full text-white flex items-center justify-center text-2xl font-bold ${summary.score >= 90 ? 'bg-green-600' : summary.score >= 80 ? 'bg-emerald-600' : summary.score >= 70 ? 'bg-yellow-600' : summary.score >= 60 ? 'bg-orange-600' : 'bg-red-600'}`}>
-              {summary.grade}
+              {summary.score >= 90 ? '✓' : summary.score >= 80 ? '✓' : summary.score >= 70 ? '⚠' : summary.score >= 60 ? '⚠' : '!'}
             </div>
             <div>
-              <div className="text-2xl font-extrabold text-zinc-900 dark:text-zinc-50">{summary.score}/100</div>
+              <div className="text-2xl font-extrabold text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
+                {summary.score}/100
+                <span 
+                  className="text-xs text-zinc-500 cursor-help"
+                  title="Score based on: Top asset concentration (60%+ = -20pts, 40%+ = -10pts), Stablecoin allocation (<10% = -10pts, >80% = -5pts), Chain diversification (<2 chains = -5pts), Portfolio size (<$10 = max 70pts)"
+                >
+                  ⓘ
+                </span>
+              </div>
               <div className="text-xs text-zinc-600 dark:text-zinc-400">Simple heuristic score for quick guidance</div>
             </div>
           </div>
@@ -254,37 +263,20 @@ export function HealthScore() {
           <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Connect a wallet or enter an address to analyze.</p>
         )}
 
-        {/* Address row */}
-        <div className="mt-4 flex items-center justify-between rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-              {/* wallet icon substitute */}
-              <span className="text-xs font-bold">0x</span>
-            </div>
-            <div className="min-w-0">
-              <div className="text-xs text-zinc-500">Analyzing address</div>
-              <div className="text-sm font-mono text-zinc-800 dark:text-zinc-100 truncate max-w-[200px]">
-                {walletAddress ? shorten(walletAddress) : '—'}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
+        {/* Recommended Actions */}
+        {summary && availableWld > 0 && (
+          <div className="mt-4">
+            <h3 className="text-sm font-semibold mb-2 text-emerald-800">Recommended Actions</h3>
             <button
               type="button"
-              onClick={onCopy}
-              className="text-xs px-2 py-1 rounded-md border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-900"
-              disabled={!walletAddress}
+              onClick={openPoolTogether}
+              className="inline-flex items-center gap-2 rounded-lg bg-emerald-100 text-emerald-700 px-3 py-2 text-xs font-semibold shadow-sm hover:bg-emerald-200 transition-colors"
             >
-              {copied ? 'Copied' : 'Copy'}
+              Deposit WLD in PoolTogether
+              <span className="text-[10px] font-normal opacity-70">{availableWld.toLocaleString(undefined, { maximumFractionDigits: 4 })} WLD</span>
             </button>
-            <Link
-              href={walletAddress ? `/home?address=${walletAddress}` : '/home'}
-              className="text-xs px-2 py-1 rounded-md bg-emerald-600 text-white hover:bg-emerald-700"
-            >
-              Edit
-            </Link>
           </div>
-        </div>
+        )}
       </section>
 
       {!walletAddress && (
@@ -322,23 +314,6 @@ export function HealthScore() {
                 <li>Looking solid. Consider putting idle stables to work for yield.</li>
               )}
             </ul>
-          </section>
-
-          {/* Explainer */}
-          <section className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 bg-gradient-to-br from-emerald-50 to-green-50 dark:bg-zinc-950">
-            <details>
-              <summary className="cursor-pointer text-sm font-semibold text-emerald-800">How it&apos;s calculated</summary>
-              <div className="mt-2 text-xs text-zinc-600 dark:text-zinc-400 space-y-1">
-                <p>We compute a score out of 100 based on:</p>
-                <ul className="list-disc pl-5 space-y-1">
-                  <li><span className="font-medium">Top asset concentration</span>: higher than 60% lowers the score (−20), above 40% (−10).</li>
-                  <li><span className="font-medium">Stablecoin allocation</span>: less than 10% lowers the score (−10); above 80% lowers slightly (−5) for growth potential.</li>
-                  <li><span className="font-medium">Chain diversification</span>: using only one chain reduces score (−5).</li>
-                  <li><span className="font-medium">Portfolio size heuristic</span>: very small portfolios cap the score at 70.</li>
-                </ul>
-                <p>This is a simple heuristic meant for quick guidance, not financial advice.</p>
-              </div>
-            </details>
           </section>
         </>
       )}
