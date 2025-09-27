@@ -86,6 +86,53 @@ const NETWORK_NAMES: Record<string, string> = {
 // Value threshold for hiding tokens
 const HIDE_TOKEN_THRESHOLD = 0.5;
 
+// Scam token detection function (same as in PortfolioDataContext)
+const isScamToken = (symbol: string, name: string): boolean => {
+  const upperSymbol = symbol.toUpperCase();
+  const upperName = name.toUpperCase();
+  
+  // Common scam patterns
+  const scamPatterns = [
+    // Website/claim patterns
+    /\[.*WWW\..*\]/i,
+    /\[.*HTTP.*\]/i,
+    /\[.*\.ORG\]/i,
+    /\[.*\.COM\]/i,
+    /\[.*\.NET\]/i,
+    /VISIT.*TO.*CLAIM/i,
+    /CLAIM.*REWARD/i,
+    /GET.*REWARD/i,
+    /CLAIM.*NOW/i,
+    /VISIT.*CLAIM/i,
+    
+    // Suspicious symbols with brackets
+    /\[.*\]/i,
+    
+    // Fake token patterns
+    /FAKE/i,
+    /SCAM/i,
+    /TEST.*TOKEN/i,
+    /DUMMY/i,
+    
+    // Suspicious high-value claims
+    /\$[0-9]+[KMB]/i,
+  ];
+  
+  // Check symbol and name for scam patterns
+  for (const pattern of scamPatterns) {
+    if (pattern.test(upperSymbol) || pattern.test(upperName)) {
+      return true;
+    }
+  }
+  
+  // Check for suspicious combinations
+  if (upperSymbol.includes('WLD') && (upperName.includes('WWW') || upperName.includes('CLAIM') || upperName.includes('REWARD'))) {
+    return true;
+  }
+  
+  return false;
+};
+
 const ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
 
 // Smart underlying asset detection function
@@ -408,28 +455,34 @@ export const TokenList = () => {
   const categorizedTokens = useMemo(() => {
     if (!groupedTokens) return { mainTokens: [], hiddenTokens: [] } as { mainTokens: PortfolioToken[]; hiddenTokens: PortfolioToken[] };
     
-    // Main tokens: only tokens with USD value >= $0.5, excluding Curve tokens
+    // Main tokens: only tokens with USD value >= $0.5, excluding Curve tokens and scam tokens
     const mainTokens = groupedTokens.filter(token => {
       const hasUsd = (token.usdValueNumber ?? 0) >= HIDE_TOKEN_THRESHOLD;
       const isCurve = /curve/i.test(token.symbol) || /Curve/i.test(token.name ?? '') || token.symbol === 'Curve';
-      return hasUsd && !isCurve;
+      const isScam = isScamToken(token.symbol, token.name ?? '');
+      return hasUsd && !isCurve && !isScam;
     }).sort((a, b) => (b.usdValueNumber ?? 0) - (a.usdValueNumber ?? 0)); // Sort by USD value descending
     
-    // Hidden tokens: all tokens with USD value < $0.5 OR Curve tokens (regardless of value)
+    // Hidden tokens: all tokens with USD value < $0.5 OR Curve tokens OR scam tokens (regardless of value)
     const hiddenTokens = groupedTokens.filter(token => {
       const hasLowUsd = (token.usdValueNumber ?? 0) < HIDE_TOKEN_THRESHOLD;
       const isCurve = /curve/i.test(token.symbol) || /Curve/i.test(token.name ?? '') || token.symbol === 'Curve';
-      return hasLowUsd || isCurve;
+      const isScam = isScamToken(token.symbol, token.name ?? '');
+      return hasLowUsd || isCurve || isScam;
     }).sort((a, b) => {
-      // Check if tokens are Curve tokens
+      // Check if tokens are Curve tokens or scam tokens
       const aIsCurve = /curve/i.test(a.symbol) || /Curve/i.test(a.name ?? '') || a.symbol === 'Curve';
       const bIsCurve = /curve/i.test(b.symbol) || /Curve/i.test(b.name ?? '') || b.symbol === 'Curve';
+      const aIsScam = isScamToken(a.symbol, a.name ?? '');
+      const bIsScam = isScamToken(b.symbol, b.name ?? '');
       
-      // Curve tokens go to the very end
-      if (aIsCurve && !bIsCurve) return 1;
-      if (!aIsCurve && bIsCurve) return -1;
+      // Scam tokens go to the very end, then Curve tokens
+      if (aIsScam && !bIsScam) return 1;
+      if (!aIsScam && bIsScam) return -1;
+      if (aIsCurve && !bIsCurve && !aIsScam && !bIsScam) return 1;
+      if (!aIsCurve && bIsCurve && !aIsScam && !bIsScam) return -1;
       
-      // For non-Curve tokens, sort by USD value descending
+      // For legitimate tokens, sort by USD value descending
       return (b.usdValueNumber ?? 0) - (a.usdValueNumber ?? 0);
     });
     
@@ -516,7 +569,25 @@ export const TokenList = () => {
                         }
                         setExpandedProtocols(newExpanded);
                       }}
-                      className="text-xs text-blue-600 hover:underline"
+                      className={`text-xs font-semibold px-3 py-1.5 rounded-lg border-2 transition-all duration-200 ${
+                        token.symbol === 'PoolTogether' 
+                          ? 'bg-purple-100 border-purple-500 text-purple-700 hover:bg-purple-200 hover:border-purple-600' 
+                          : token.symbol === 'Aave'
+                          ? 'bg-blue-100 border-blue-500 text-blue-700 hover:bg-blue-200 hover:border-blue-600'
+                          : token.symbol === 'Compound'
+                          ? 'bg-green-100 border-green-500 text-green-700 hover:bg-green-200 hover:border-green-600'
+                          : token.symbol === 'Uniswap'
+                          ? 'bg-pink-100 border-pink-500 text-pink-700 hover:bg-pink-200 hover:border-pink-600'
+                          : token.symbol === 'Curve'
+                          ? 'bg-orange-100 border-orange-500 text-orange-700 hover:bg-orange-200 hover:border-orange-600'
+                          : token.symbol === 'Lido'
+                          ? 'bg-indigo-100 border-indigo-500 text-indigo-700 hover:bg-indigo-200 hover:border-indigo-600'
+                          : token.symbol === 'Rocket Pool'
+                          ? 'bg-cyan-100 border-cyan-500 text-cyan-700 hover:bg-cyan-200 hover:border-cyan-600'
+                          : token.symbol === 'MakerDAO'
+                          ? 'bg-yellow-100 border-yellow-500 text-yellow-700 hover:bg-yellow-200 hover:border-yellow-600'
+                          : 'bg-gray-100 border-gray-500 text-gray-700 hover:bg-gray-200 hover:border-gray-600'
+                      }`}
                     >
                       {expandedProtocols.has(token.symbol) ? 'Hide positions' : `View positions (${protocolTokensMap.get(token.symbol.toLowerCase().replace(' ', ''))?.length || 0})`}
                     </button>
@@ -586,7 +657,25 @@ export const TokenList = () => {
                               }
                               setExpandedProtocols(newExpanded);
                             }}
-                            className="text-sm text-blue-600 hover:underline font-medium"
+                            className={`text-sm font-semibold px-4 py-2 rounded-lg border-2 transition-all duration-200 ${
+                              token.symbol === 'PoolTogether' 
+                                ? 'bg-purple-100 border-purple-500 text-purple-700 hover:bg-purple-200 hover:border-purple-600' 
+                                : token.symbol === 'Aave'
+                                ? 'bg-blue-100 border-blue-500 text-blue-700 hover:bg-blue-200 hover:border-blue-600'
+                                : token.symbol === 'Compound'
+                                ? 'bg-green-100 border-green-500 text-green-700 hover:bg-green-200 hover:border-green-600'
+                                : token.symbol === 'Uniswap'
+                                ? 'bg-pink-100 border-pink-500 text-pink-700 hover:bg-pink-200 hover:border-pink-600'
+                                : token.symbol === 'Curve'
+                                ? 'bg-orange-100 border-orange-500 text-orange-700 hover:bg-orange-200 hover:border-orange-600'
+                                : token.symbol === 'Lido'
+                                ? 'bg-indigo-100 border-indigo-500 text-indigo-700 hover:bg-indigo-200 hover:border-indigo-600'
+                                : token.symbol === 'Rocket Pool'
+                                ? 'bg-cyan-100 border-cyan-500 text-cyan-700 hover:bg-cyan-200 hover:border-cyan-600'
+                                : token.symbol === 'MakerDAO'
+                                ? 'bg-yellow-100 border-yellow-500 text-yellow-700 hover:bg-yellow-200 hover:border-yellow-600'
+                                : 'bg-gray-100 border-gray-500 text-gray-700 hover:bg-gray-200 hover:border-gray-600'
+                            }`}
                           >
                             {expandedProtocols.has(token.symbol) ? 'Hide positions' : `View positions (${protocolTokensMap.get(token.symbol.toLowerCase().replace(' ', ''))?.length || 0})`}
                           </button>
@@ -752,7 +841,8 @@ export const TokenList = () => {
                           <p className="text-xs text-gray-500">
                             {(() => {
                               const isCurve = /curve/i.test(token.symbol) || /Curve/i.test(token.name ?? '');
-                              if (isCurve) return '$0.00';
+                              const isScam = isScamToken(token.symbol, token.name ?? '');
+                              if (isCurve || isScam) return '$0.00';
                               return token.usdValue ?? '<$0.01';
                             })()}
                           </p>
@@ -800,7 +890,8 @@ export const TokenList = () => {
                               <p className="text-sm font-medium text-gray-500">
                                 {(() => {
                                   const isCurve = /curve/i.test(token.symbol) || /Curve/i.test(token.name ?? '');
-                                  if (isCurve) return '$0.00';
+                                  const isScam = isScamToken(token.symbol, token.name ?? '');
+                                  if (isCurve || isScam) return '$0.00';
                                   return token.usdValue ?? '<$0.01';
                                 })()}
                               </p>

@@ -98,6 +98,53 @@ const BALANCE_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
 const MIN_BALANCE_THRESHOLD = 0.000001;
 const MAX_TOKENS_PER_NETWORK = 100;
 
+// Scam token detection function
+const isScamToken = (symbol: string, name: string): boolean => {
+  const upperSymbol = symbol.toUpperCase();
+  const upperName = name.toUpperCase();
+  
+  // Common scam patterns
+  const scamPatterns = [
+    // Website/claim patterns
+    /\[.*WWW\..*\]/i,
+    /\[.*HTTP.*\]/i,
+    /\[.*\.ORG\]/i,
+    /\[.*\.COM\]/i,
+    /\[.*\.NET\]/i,
+    /VISIT.*TO.*CLAIM/i,
+    /CLAIM.*REWARD/i,
+    /GET.*REWARD/i,
+    /CLAIM.*NOW/i,
+    /VISIT.*CLAIM/i,
+    
+    // Suspicious symbols with brackets
+    /\[.*\]/i,
+    
+    // Fake token patterns
+    /FAKE/i,
+    /SCAM/i,
+    /TEST.*TOKEN/i,
+    /DUMMY/i,
+    
+    // Suspicious high-value claims
+    /\$[0-9]+[KMB]/i,
+  ];
+  
+  // Check symbol and name for scam patterns
+  for (const pattern of scamPatterns) {
+    if (pattern.test(upperSymbol) || pattern.test(upperName)) {
+      return true;
+    }
+  }
+  
+  // Check for suspicious combinations
+  if (upperSymbol.includes('WLD') && (upperName.includes('WWW') || upperName.includes('CLAIM') || upperName.includes('REWARD'))) {
+    return true;
+  }
+  
+  return false;
+};
+
 const NETWORK_LABELS: Record<string, { label: string; nativeSymbol: string }> = {
   ETH_MAINNET: { label: 'Ethereum Mainnet', nativeSymbol: 'ETH' },
   WORLDCHAIN_MAINNET: { label: 'World Chain', nativeSymbol: 'ETH' },
@@ -405,8 +452,14 @@ export function PortfolioDataProvider({ children }: { children: React.ReactNode 
             } catch {}
           }
 
-          // Derive prices for PoolTogether tokens based on underlying assets using pre-fetched prices
+          // Derive prices for legitimate tokens only (exclude scam tokens)
           for (const token of result) {
+            // Skip scam tokens - don't assign any USD value
+            if (isScamToken(token.symbol, token.name)) {
+              token.usd = 0; // Explicitly set to 0
+              continue;
+            }
+            
             if (!token.usd && token.symbol) {
               const symbol = token.symbol.toUpperCase();
               let underlyingPrice: number | undefined;
@@ -488,9 +541,10 @@ export function PortfolioDataProvider({ children }: { children: React.ReactNode 
   const totalValue = useMemo(() => {
     return tokens
       .filter(t => {
-        // Exclude Curve tokens from total value calculation
+        // Exclude Curve tokens and scam tokens from total value calculation
         const isCurve = /curve/i.test(t.symbol) || /Curve/i.test(t.name ?? '') || t.symbol === 'Curve';
-        return !isCurve;
+        const isScam = isScamToken(t.symbol, t.name ?? '');
+        return !isCurve && !isScam;
       })
       .reduce((sum, t) => sum + (t.usd ?? 0), 0);
   }, [tokens]);
