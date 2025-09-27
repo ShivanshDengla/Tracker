@@ -6,7 +6,7 @@ import { HealthScore } from '@/components/Analyze/HealthScore';
 export default function AnalyzePage() {
 
   return (
-    <div className="min-h-screen bg-red-50/30">
+    <div className="min-h-screen" style={{ backgroundColor: '#fefce8' }}>
       <Page.Header className="p-0">
         <div className="px-6 pt-3 pb-2">
           <SelectedWallet />

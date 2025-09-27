@@ -262,7 +262,7 @@ export const TokenList = () => {
 
     const protocolGroups = new Map<string, PortfolioToken[]>();
     
-    // Common tokens that should NOT be grouped into protocols
+    // Common tokens that should NOT be grouped into protocols (exact matches only)
     const excludeFromGrouping = new Set([
       'WLD', 'ETH', 'USDC', 'USDT', 'DAI', 'LINK', 'UNI', 'AAVE', 'MATIC', 'BNB', 'AVAX',
       'USDC.E', 'USDC.e', 'WETH', 'WBTC', 'BTC'
@@ -272,7 +272,7 @@ export const TokenList = () => {
       const tokenName = token.name ?? '';
       const tokenSymbol = token.symbol ?? '';
       
-      // Skip if it's a common token that should remain individual
+      // Skip if it's a common token that should remain individual (exact match only)
       if (excludeFromGrouping.has(tokenSymbol.toUpperCase())) {
         continue;
       }
@@ -339,7 +339,7 @@ export const TokenList = () => {
       }
     };
 
-    // Common tokens that should NOT be grouped into protocols
+    // Common tokens that should NOT be grouped into protocols (exact matches only)
     const excludeFromGrouping = new Set([
       'WLD', 'ETH', 'USDC', 'USDT', 'DAI', 'LINK', 'UNI', 'AAVE', 'MATIC', 'BNB', 'AVAX',
       'USDC.E', 'USDC.e', 'WETH', 'WBTC', 'BTC'
@@ -353,7 +353,7 @@ export const TokenList = () => {
       const tokenName = token.name ?? '';
       const tokenSymbol = token.symbol ?? '';
       
-      // Skip if it's a common token that should remain individual
+      // Skip if it's a common token that should remain individual (exact match only)
       if (excludeFromGrouping.has(tokenSymbol.toUpperCase())) {
         others.push(token);
         continue;

@@ -42,7 +42,7 @@ export const Navigation = () => {
           href={{ pathname: '/analyze', query: params?.toString() ? Object.fromEntries(params!.entries()) : undefined }}
           className={clsx(
             'flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-3 transition-all duration-200',
-            isAnalyze ? 'text-white font-semibold bg-red-600 shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800'
+            isAnalyze ? 'text-white font-semibold bg-yellow-500 shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800'
           )}
           aria-current={isAnalyze ? 'page' : undefined}
         >
