@@ -1,6 +1,7 @@
 import { auth } from '@/auth';
 import { Navigation } from '@/components/Navigation';
 import { Page } from '@/components/PageLayout';
+import { PortfolioDataProvider } from '@/contexts/PortfolioDataContext';
 
 export default async function TabsLayout({
   children,
@@ -16,16 +17,18 @@ export default async function TabsLayout({
   }
 
   return (
-    <Page>
-      <div
-        className="pb-28"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 96px)' }}
-      >
-        {children}
-      </div>
-      <Page.Footer className="px-0 fixed bottom-0 w-full bg-white z-50">
-        <Navigation />
-      </Page.Footer>
-    </Page>
+    <PortfolioDataProvider>
+      <Page>
+        <div
+          className="pb-28"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 96px)' }}
+        >
+          {children}
+        </div>
+        <Page.Footer className="px-0 fixed bottom-0 w-full bg-white z-50">
+          <Navigation />
+        </Page.Footer>
+      </Page>
+    </PortfolioDataProvider>
   );
 }
