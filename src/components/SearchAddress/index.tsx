@@ -26,6 +26,7 @@ export const SearchAddress = () => {
   const initialAddress = params.get('address') || '';
   const [searchValue, setSearchValue] = useState(initialAddress);
   const [copied, setCopied] = useState(false);
+  const [history, setHistory] = useState<string[]>([]);
   // removed isEditing mode; keep input simple and always editable
 
   const debouncedValue = useDebounce(searchValue, 400);
@@ -44,6 +45,17 @@ export const SearchAddress = () => {
     const next = new URLSearchParams(params.toString());
     next.set('address', debouncedValue);
     router.push(`?${next.toString()}`);
+    // persist to history
+    try {
+      const key = 'tracker_address_history';
+      const current: string[] = JSON.parse(localStorage.getItem(key) || '[]');
+      const addr = debouncedValue.trim();
+      if (ADDRESS_REGEX.test(addr)) {
+        const updated = [addr, ...current.filter(a => a.toLowerCase() !== addr.toLowerCase())].slice(0, 10);
+        localStorage.setItem(key, JSON.stringify(updated));
+        setHistory(updated);
+      }
+    } catch {}
   }, [debouncedValue, router, params, isValidAddress]);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -65,6 +77,31 @@ export const SearchAddress = () => {
 
   const handleClear = () => {
     setSearchValue('');
+  };
+
+  // load history on mount
+  useEffect(() => {
+    try {
+      const key = 'tracker_address_history';
+      const current: string[] = JSON.parse(localStorage.getItem(key) || '[]');
+      setHistory(current);
+    } catch {}
+  }, []);
+
+  const handlePickHistory = (addr: string) => {
+    setSearchValue(addr);
+    const next = new URLSearchParams(params.toString());
+    next.set('address', addr);
+    router.push(`?${next.toString()}`);
+  };
+
+  const handleDeleteHistory = (addr: string) => {
+    try {
+      const key = 'tracker_address_history';
+      const updated = history.filter(a => a.toLowerCase() !== addr.toLowerCase());
+      localStorage.setItem(key, JSON.stringify(updated));
+      setHistory(updated);
+    } catch {}
   };
 
   const handleCopy = async () => {
@@ -147,6 +184,34 @@ export const SearchAddress = () => {
           ) : null}
         </div>
       </form>
+      {history.length > 0 && (
+        <div className="mt-3 bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <div className="px-4 py-2 text-xs font-semibold text-gray-600 bg-gray-50 border-b border-gray-200">
+            Recent addresses
+          </div>
+          <ul className="max-h-48 overflow-auto divide-y divide-gray-100">
+            {history.map((addr) => (
+              <li key={addr} className="flex items-center justify-between px-4 py-2 hover:bg-gray-50">
+                <button
+                  type="button"
+                  className="text-xs font-mono text-blue-700 truncate text-left mr-2"
+                  onClick={() => handlePickHistory(addr)}
+                  title={addr}
+                >
+                  {addr}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteHistory(addr)}
+                  className="text-xs text-red-600 hover:underline"
+                >
+                  Delete
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 };

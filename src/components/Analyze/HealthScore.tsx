@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import { Alchemy, Network, type TokenAddressRequest } from 'alchemy-sdk';
@@ -69,6 +70,7 @@ export function HealthScore() {
   const params = useSearchParams();
   const queryAddress = params.get('address');
   const walletAddress = (queryAddress && ADDRESS_REGEX.test(queryAddress) ? queryAddress : undefined) || (data?.user?.walletAddress as `0x${string}` | undefined);
+  const [copied, setCopied] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -216,45 +218,101 @@ export function HealthScore() {
     return { score, grade, totalUsd, topSymbol, topShare, stableShare, chains };
   }, [tokens]);
 
+  const shorten = (addr: string, n = 4) => {
+    if (!addr) return '';
+    return `${addr.slice(0, n + 2)}…${addr.slice(-n)}`;
+  };
+
+  const onCopy = async () => {
+    if (!walletAddress) return;
+    try {
+      await navigator.clipboard.writeText(walletAddress);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  };
+
   return (
-    <section className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold">Portfolio Health</h2>
-        {summary && (
-          <div className="flex items-center gap-3">
-            <div className={`w-12 h-12 rounded-full text-white flex items-center justify-center text-lg font-bold ${summary.score >= 90 ? 'bg-green-600' : summary.score >= 80 ? 'bg-emerald-600' : summary.score >= 70 ? 'bg-yellow-600' : summary.score >= 60 ? 'bg-orange-600' : 'bg-red-600'}`}>
+    <div className="space-y-4">
+      {/* Hero Score Card */}
+      <section className="rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-zinc-900 dark:to-zinc-900">
+        <div className="flex items-center gap-3">
+          <span className="inline-block w-2 h-2 rounded-full bg-blue-600" />
+          <h2 className="text-base font-semibold">Portfolio Health</h2>
+        </div>
+        {summary ? (
+          <div className="mt-3 flex items-center gap-4">
+            <div className={`w-16 h-16 rounded-full text-white flex items-center justify-center text-2xl font-bold ${summary.score >= 90 ? 'bg-green-600' : summary.score >= 80 ? 'bg-emerald-600' : summary.score >= 70 ? 'bg-yellow-600' : summary.score >= 60 ? 'bg-orange-600' : 'bg-red-600'}`}>
               {summary.grade}
             </div>
-            <div className="text-sm text-zinc-800 dark:text-zinc-100 font-semibold">{summary.score}/100</div>
+            <div>
+              <div className="text-2xl font-extrabold text-zinc-900 dark:text-zinc-50">{summary.score}/100</div>
+              <div className="text-xs text-zinc-600 dark:text-zinc-400">Simple heuristic score for quick guidance</div>
+            </div>
           </div>
+        ) : (
+          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Connect a wallet or enter an address to analyze.</p>
         )}
-      </div>
+
+        {/* Address row */}
+        <div className="mt-4 flex items-center justify-between rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+              {/* wallet icon substitute */}
+              <span className="text-xs font-bold">0x</span>
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs text-zinc-500">Analyzing address</div>
+              <div className="text-sm font-mono text-zinc-800 dark:text-zinc-100 truncate max-w-[200px]">
+                {walletAddress ? shorten(walletAddress) : '—'}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onCopy}
+              className="text-xs px-2 py-1 rounded-md border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-900"
+              disabled={!walletAddress}
+            >
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+            <Link
+              href={walletAddress ? `/home?address=${walletAddress}` : '/home'}
+              className="text-xs px-2 py-1 rounded-md bg-blue-600 text-white hover:bg-blue-700"
+            >
+              Edit
+            </Link>
+          </div>
+        </div>
+      </section>
 
       {!walletAddress && (
-        <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2">Connect a wallet on the Tracker tab to analyze.</p>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">Connect a wallet on the Tracker tab to analyze.</p>
       )}
-      {loading && <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2">Analyzing…</p>}
-      {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
+      {loading && <p className="text-sm text-zinc-600 dark:text-zinc-400">Analyzing…</p>}
+      {error && <p className="text-sm text-red-600">{error}</p>}
 
       {summary && (
-        <div className="mt-4 space-y-3">
-          <div className="text-sm">
-            <span className="font-medium">Top asset concentration:</span>{' '}
-            {Math.round(summary.topShare * 100)}%
-            {summary.topSymbol?.[0] ? ` (${summary.topSymbol[0]})` : ''}
-          </div>
-          <div className="text-sm">
-            <span className="font-medium">Stablecoin allocation:</span>{' '}
-            {Math.round(summary.stableShare * 100)}%
-          </div>
-          <div className="text-sm">
-            <span className="font-medium">Chains used:</span>{' '}
-            {summary.chains.slice(0, 3).map(([chain, usd], i) => (
-              <span key={chain} className="mr-2">{chain} ({usd.toLocaleString(undefined, { maximumFractionDigits: 0 })}){i < summary.chains.slice(0,3).length - 1 ? ',' : ''}</span>
-            ))}
+        <>
+          {/* Metrics grid */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-3 bg-white dark:bg-zinc-950">
+              <div className="text-xs text-zinc-500">Top concentration</div>
+              <div className="mt-1 text-lg font-bold">{Math.round(summary.topShare * 100)}% {summary.topSymbol?.[0] ? `(${summary.topSymbol[0]})` : ''}</div>
+            </div>
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-3 bg-white dark:bg-zinc-950">
+              <div className="text-xs text-zinc-500">Stable allocation</div>
+              <div className="mt-1 text-lg font-bold">{Math.round(summary.stableShare * 100)}%</div>
+            </div>
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-3 bg-white dark:bg-zinc-950">
+              <div className="text-xs text-zinc-500">Chains used</div>
+              <div className="mt-1 text-lg font-bold">{summary.chains.length}</div>
+            </div>
           </div>
 
-          <div className="pt-2">
+          {/* Suggestions */}
+          <section className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 bg-white dark:bg-zinc-950">
             <h3 className="text-sm font-semibold mb-1">Suggestions</h3>
             <ul className="list-disc pl-5 space-y-1 text-sm text-zinc-700 dark:text-zinc-300">
               {summary.topShare > 0.5 && <li>Reduce reliance on your top asset by swapping a portion into stables.</li>}
@@ -264,24 +322,27 @@ export function HealthScore() {
                 <li>Looking solid. Consider putting idle stables to work for yield.</li>
               )}
             </ul>
-          </div>
+          </section>
 
-          <details className="mt-3">
-            <summary className="cursor-pointer text-sm font-semibold">How it’s calculated</summary>
-            <div className="mt-2 text-xs text-zinc-600 dark:text-zinc-400 space-y-1">
-              <p>We compute a score out of 100 based on:</p>
-              <ul className="list-disc pl-5 space-y-1">
-                <li><span className="font-medium">Top asset concentration</span>: higher than 60% lowers the score (−20), above 40% (−10).</li>
-                <li><span className="font-medium">Stablecoin allocation</span>: less than 10% lowers the score (−10); above 80% lowers slightly (−5) for growth potential.</li>
-                <li><span className="font-medium">Chain diversification</span>: using only one chain reduces score (−5).</li>
-                <li><span className="font-medium">Portfolio size heuristic</span>: very small portfolios cap the score at 70.</li>
-              </ul>
-              <p>This is a simple heuristic meant for quick guidance, not financial advice.</p>
-            </div>
-          </details>
-        </div>
+          {/* Explainer */}
+          <section className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 bg-white dark:bg-zinc-950">
+            <details>
+              <summary className="cursor-pointer text-sm font-semibold">How it’s calculated</summary>
+              <div className="mt-2 text-xs text-zinc-600 dark:text-zinc-400 space-y-1">
+                <p>We compute a score out of 100 based on:</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li><span className="font-medium">Top asset concentration</span>: higher than 60% lowers the score (−20), above 40% (−10).</li>
+                  <li><span className="font-medium">Stablecoin allocation</span>: less than 10% lowers the score (−10); above 80% lowers slightly (−5) for growth potential.</li>
+                  <li><span className="font-medium">Chain diversification</span>: using only one chain reduces score (−5).</li>
+                  <li><span className="font-medium">Portfolio size heuristic</span>: very small portfolios cap the score at 70.</li>
+                </ul>
+                <p>This is a simple heuristic meant for quick guidance, not financial advice.</p>
+              </div>
+            </details>
+          </section>
+        </>
       )}
-    </section>
+    </div>
   );
 }
 
