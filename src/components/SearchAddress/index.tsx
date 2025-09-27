@@ -138,8 +138,6 @@ export const SearchAddress = () => {
         <div className="mt-1 min-h-[1rem]">
           {!isValidAddress && searchValue ? (
             <p className="text-xs text-red-500">Enter a valid EVM address.</p>
-          ) : isValidAddress && searchValue ? (
-            <p className="text-xs text-green-600">✓ Valid address - searching automatically</p>
           ) : null}
         </div>
       </div>

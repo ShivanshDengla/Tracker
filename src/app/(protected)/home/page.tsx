@@ -5,7 +5,7 @@ import { SelectedWallet } from '@/components/UserInfo';
 
 export default function Home() {
   return (
-    <>
+    <div className="min-h-screen bg-green-50/30">
       <Page.Header className="p-0">
         <div className="px-6 pt-3 pb-2">
           <SelectedWallet />
@@ -17,6 +17,6 @@ export default function Home() {
       <Page.Main className="flex flex-col items-center justify-start gap-6 pb-24 md:pb-28">
         <TokenList />
       </Page.Main>
-    </>
+    </div>
   );
 }

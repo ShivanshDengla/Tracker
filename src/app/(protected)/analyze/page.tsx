@@ -6,7 +6,7 @@ import { HealthScore } from '@/components/Analyze/HealthScore';
 export default function AnalyzePage() {
 
   return (
-    <>
+    <div className="min-h-screen bg-red-50/30">
       <Page.Header className="p-0">
         <div className="px-6 pt-3 pb-2">
           <SelectedWallet />
@@ -18,7 +18,7 @@ export default function AnalyzePage() {
       <Page.Main className="flex flex-col gap-4 pb-24 md:pb-28">
         <HealthScore />
       </Page.Main>
-    </>
+    </div>
   );
 }
 

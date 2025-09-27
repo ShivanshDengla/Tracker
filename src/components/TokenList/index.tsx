@@ -251,8 +251,8 @@ export const TokenList = () => {
     
     const protocolPatterns = {
       pooltogether: /(pooltogether|prize|prz)/i,
-      aave: /(aave|a[A-Z]|am[A-Z]|variableDebt|stableDebt)/i,
-      compound: /(compound|c[A-Z]|cETH|cUSDC|cDAI)/i,
+      aave: /(aave|^a[A-Z]{2,}$|am[A-Z]{2,}|variableDebt|stableDebt)/i,
+      compound: /(compound|^c[A-Z]{2,}$|cETH|cUSDC|cDAI)/i,
       uniswap: /(uniswap|uni|v2|v3|LP|UNI-V2|UNI-V3)/i,
       curve: /(curve|crv|3crv|steth|gusd|y|busd)/i,
       lido: /(lido|steth|stETH|wstETH)/i,
@@ -262,9 +262,20 @@ export const TokenList = () => {
 
     const protocolGroups = new Map<string, PortfolioToken[]>();
     
+    // Common tokens that should NOT be grouped into protocols
+    const excludeFromGrouping = new Set([
+      'WLD', 'ETH', 'USDC', 'USDT', 'DAI', 'LINK', 'UNI', 'AAVE', 'MATIC', 'BNB', 'AVAX',
+      'USDC.E', 'USDC.e', 'WETH', 'WBTC', 'BTC'
+    ]);
+    
     for (const token of displayTokens) {
       const tokenName = token.name ?? '';
       const tokenSymbol = token.symbol ?? '';
+      
+      // Skip if it's a common token that should remain individual
+      if (excludeFromGrouping.has(tokenSymbol.toUpperCase())) {
+        continue;
+      }
       
       for (const [protocolKey, regex] of Object.entries(protocolPatterns)) {
         if (regex.test(tokenSymbol) || regex.test(tokenName)) {
@@ -292,12 +303,12 @@ export const TokenList = () => {
         icon: '🎯'
       },
       aave: {
-        regex: /(aave|a[A-Z]|am[A-Z]|variableDebt|stableDebt)/i,
+        regex: /(aave|^a[A-Z]{2,}$|am[A-Z]{2,}|variableDebt|stableDebt)/i,
         name: 'Aave',
         icon: '🏦'
       },
       compound: {
-        regex: /(compound|c[A-Z]|cETH|cUSDC|cDAI)/i,
+        regex: /(compound|^c[A-Z]{2,}$|cETH|cUSDC|cDAI)/i,
         name: 'Compound',
         icon: '💰'
       },
@@ -328,6 +339,12 @@ export const TokenList = () => {
       }
     };
 
+    // Common tokens that should NOT be grouped into protocols
+    const excludeFromGrouping = new Set([
+      'WLD', 'ETH', 'USDC', 'USDT', 'DAI', 'LINK', 'UNI', 'AAVE', 'MATIC', 'BNB', 'AVAX',
+      'USDC.E', 'USDC.e', 'WETH', 'WBTC', 'BTC'
+    ]);
+
     // Group tokens by protocol
     const protocolGroups: Record<string, PortfolioToken[]> = {};
     const others: PortfolioToken[] = [];
@@ -335,6 +352,12 @@ export const TokenList = () => {
     for (const token of displayTokens) {
       const tokenName = token.name ?? '';
       const tokenSymbol = token.symbol ?? '';
+      
+      // Skip if it's a common token that should remain individual
+      if (excludeFromGrouping.has(tokenSymbol.toUpperCase())) {
+        others.push(token);
+        continue;
+      }
       
       let matched = false;
       
