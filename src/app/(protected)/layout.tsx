@@ -20,12 +20,12 @@ export default async function TabsLayout({
     <PortfolioDataProvider>
       <Page>
         <div
-          className="pb-28"
-          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 96px)' }}
+          className="pb-32"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 120px)' }}
         >
           {children}
         </div>
-        <Page.Footer className="px-0 fixed bottom-0 w-full bg-white z-50">
+        <Page.Footer className="px-0 fixed bottom-0 w-full bg-white/95 backdrop-blur-sm border-t border-gray-200 z-50 shadow-lg">
           <Navigation />
         </Page.Footer>
       </Page>

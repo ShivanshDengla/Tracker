@@ -14,41 +14,41 @@ export const Navigation = () => {
 
   return (
     <nav
-      className="w-full border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900"
-      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 6px)' }}
+      className="w-full bg-transparent"
+      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 8px)' }}
       aria-label="Bottom navigation"
     >
-      <div className="mx-auto max-w-screen-sm grid grid-cols-2 gap-1 py-2 px-4 mt-2">
+      <div className="mx-auto max-w-screen-sm grid grid-cols-2 gap-1 py-3 px-4">
         <Link
           href={{ pathname: '/home', query: params?.toString() ? Object.fromEntries(params!.entries()) : undefined }}
           className={clsx(
-            'flex flex-col items-center justify-center gap-1 rounded-md py-1.5',
-            isTracker ? 'text-white font-semibold bg-blue-600' : 'text-zinc-500 dark:text-zinc-400'
+            'flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-3 transition-all duration-200',
+            isTracker ? 'text-white font-semibold bg-blue-600 shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800'
           )}
           aria-current={isTracker ? 'page' : undefined}
         >
           <HomeSimpleDoor
             width={24}
             height={24}
-            className={clsx(isTracker ? 'stroke-current' : 'stroke-current')}
+            className="stroke-current"
           />
-          <span className="text-xs">Tracker</span>
+          <span className="text-xs font-medium">Tracker</span>
         </Link>
 
         <Link
           href={{ pathname: '/analyze', query: params?.toString() ? Object.fromEntries(params!.entries()) : undefined }}
           className={clsx(
-            'flex flex-col items-center justify-center gap-1 rounded-md py-1.5',
-            isAnalyze ? 'text-white font-semibold bg-blue-600' : 'text-zinc-500 dark:text-zinc-400'
+            'flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-3 transition-all duration-200',
+            isAnalyze ? 'text-white font-semibold bg-blue-600 shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800'
           )}
           aria-current={isAnalyze ? 'page' : undefined}
         >
           <GraphUp
             width={24}
             height={24}
-            className={clsx(isAnalyze ? 'stroke-current' : 'stroke-current')}
+            className="stroke-current"
           />
-          <span className="text-xs">Analyze</span>
+          <span className="text-xs font-medium">Analyze</span>
         </Link>
       </div>
     </nav>

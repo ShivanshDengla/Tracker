@@ -88,6 +88,67 @@ const HIDE_TOKEN_THRESHOLD = 0.5;
 
 const ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
 
+// Smart underlying asset detection function
+const detectUnderlyingAsset = (symbol: string): string | null => {
+  const upperSymbol = symbol.toUpperCase();
+  
+  // Common patterns for underlying assets
+  const patterns = [
+    // USDC patterns
+    { pattern: /USDC/i, asset: 'USDC' },
+    { pattern: /.*USDC.*/i, asset: 'USDC' },
+    
+    // USDT patterns  
+    { pattern: /USDT/i, asset: 'USDT' },
+    { pattern: /.*USDT.*/i, asset: 'USDT' },
+    
+    // DAI patterns
+    { pattern: /DAI/i, asset: 'DAI' },
+    { pattern: /.*DAI.*/i, asset: 'DAI' },
+    
+    // ETH patterns
+    { pattern: /ETH/i, asset: 'ETH' },
+    { pattern: /.*ETH.*/i, asset: 'ETH' },
+    { pattern: /WETH/i, asset: 'ETH' },
+    
+    // WLD patterns
+    { pattern: /WLD/i, asset: 'WLD' },
+    { pattern: /.*WLD.*/i, asset: 'WLD' },
+    
+    // LINK patterns
+    { pattern: /LINK/i, asset: 'LINK' },
+    { pattern: /.*LINK.*/i, asset: 'LINK' },
+    
+    // UNI patterns
+    { pattern: /UNI/i, asset: 'UNI' },
+    { pattern: /.*UNI.*/i, asset: 'UNI' },
+    
+    // AAVE patterns
+    { pattern: /AAVE/i, asset: 'AAVE' },
+    { pattern: /.*AAVE.*/i, asset: 'AAVE' },
+    
+    // MATIC patterns
+    { pattern: /MATIC/i, asset: 'MATIC' },
+    { pattern: /.*MATIC.*/i, asset: 'MATIC' },
+    
+    // BNB patterns
+    { pattern: /BNB/i, asset: 'BNB' },
+    { pattern: /.*BNB.*/i, asset: 'BNB' },
+    
+    // AVAX patterns
+    { pattern: /AVAX/i, asset: 'AVAX' },
+    { pattern: /.*AVAX.*/i, asset: 'AVAX' },
+  ];
+  
+  for (const { pattern, asset } of patterns) {
+    if (pattern.test(upperSymbol)) {
+      return asset;
+    }
+  }
+  
+  return null;
+};
+
 // Token icon component with static mapping
 const TokenIcon = ({ logo, symbol, size = 24, className = "" }: { 
   logo?: string | null; 
@@ -97,7 +158,7 @@ const TokenIcon = ({ logo, symbol, size = 24, className = "" }: {
 }) => {
   const [imageError, setImageError] = useState(false);
   
-  // Enhanced icon logic with PoolTogether priority
+  // Enhanced icon logic with smart underlying asset detection
   const iconUrl = useMemo(() => {
     // Try Alchemy first
     if (logo) {
@@ -110,6 +171,12 @@ const TokenIcon = ({ logo, symbol, size = 24, className = "" }: {
     
     if (poolTogetherIcon) {
       return poolTogetherIcon;
+    }
+    
+    // Smart underlying asset detection
+    const underlyingAsset = detectUnderlyingAsset(cleanSymbol);
+    if (underlyingAsset) {
+      return TOKEN_ICONS[underlyingAsset];
     }
     
     // Try local mapping
@@ -303,7 +370,7 @@ export const TokenList = () => {
       usdValueNumber: totalUsd,
       usdValue: `$${totalUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
           network: protocol.name,
-      logo: null,
+      logo: protocolKey === 'pooltogether' ? 'https://app.cabana.fi/icons/przPOOL.svg' : null, // Use POOL token icon for PoolTogether
       price: undefined,
       contractAddress: undefined,
     };
@@ -449,22 +516,22 @@ export const TokenList = () => {
 
                 {/* Mobile Layout */}
                 <div className="sm:hidden border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors">
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center space-x-3">
+                  <div className="p-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center space-x-4">
                         <div className="relative">
                           <TokenIcon 
                             logo={token.logo} 
                             symbol={token.symbol} 
-                            size={32}
+                            size={40}
                           />
                           {(() => {
                             const networkKey = Object.entries(NETWORK_NAMES).find(([, name]) => name === token.network)?.[0];
                             const chainIconSrc = NETWORK_ICONS[networkKey || ''];
                             if (chainIconSrc) {
                               return (
-                                <div className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center border border-gray-200 overflow-hidden">
-                                  <Image src={chainIconSrc} alt="" width={14} height={14} className="w-full h-full object-cover" />
+                                <div className="absolute -top-1 -right-1 w-5 h-5 bg-white rounded-full flex items-center justify-center border border-gray-200 overflow-hidden">
+                                  <Image src={chainIconSrc} alt="" width={16} height={16} className="w-full h-full object-cover" />
                                 </div>
                               );
                             }
@@ -472,14 +539,14 @@ export const TokenList = () => {
                           })()}
                         </div>
                         <div>
-                          <p className="text-sm font-semibold text-gray-800">{token.symbol}</p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-base font-bold text-gray-800">{token.symbol}</p>
+                          <p className="text-sm text-gray-500">
                             {token.price ? `$${token.price.toLocaleString(undefined, { maximumFractionDigits: 4 })}` : '—'}
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-semibold text-gray-800">
+                        <p className="text-base font-bold text-gray-800">
                           {token.usdValue ?? '—'}
                         </p>
                       </div>
@@ -498,12 +565,12 @@ export const TokenList = () => {
                               }
                               setExpandedProtocols(newExpanded);
                             }}
-                            className="text-xs text-blue-600 hover:underline"
+                            className="text-sm text-blue-600 hover:underline font-medium"
                           >
                             {expandedProtocols.has(token.symbol) ? 'Hide positions' : `View positions (${protocolTokensMap.get(token.symbol.toLowerCase().replace(' ', ''))?.length || 0})`}
                           </button>
                         ) : (
-                          <p className="text-xs text-gray-600">
+                          <p className="text-sm text-gray-600">
                             {token.amount}
                           </p>
                         )}
@@ -522,40 +589,40 @@ export const TokenList = () => {
                       {protocolTokensMap.get(token.symbol.toLowerCase().replace(' ', ''))?.slice(0, 6).map((pt, idx) => (
                         <div
                           key={`${token.symbol.toLowerCase()}-${pt.contractAddress}-${pt.network}-${idx}`}
-                          className="grid grid-cols-3 gap-4 px-6 py-2 border-b border-gray-50 last:border-b-0"
-                        >
-                          {/* Asset Column */}
-                          <div className="flex items-center space-x-2">
-                            <div className="relative">
-                              <TokenIcon logo={pt.logo} symbol={pt.symbol} size={20} />
-                              {(() => {
-                                const networkKey = Object.entries(NETWORK_NAMES).find(([, name]) => name === pt.network)?.[0];
-                                const chainIconSrc = NETWORK_ICONS[networkKey || ''];
-                                if (chainIconSrc) {
-                                  return (
-                                    <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-white rounded-full flex items-center justify-center border border-gray-200 overflow-hidden">
+                          className="grid grid-cols-3 gap-4 px-8 py-2 border-b border-gray-50 last:border-b-0 bg-gray-50/30"
+                      >
+                        {/* Asset Column */}
+                        <div className="flex items-center space-x-2">
+                          <div className="relative">
+                            <TokenIcon logo={pt.logo} symbol={pt.symbol} size={20} />
+                            {(() => {
+                              const networkKey = Object.entries(NETWORK_NAMES).find(([, name]) => name === pt.network)?.[0];
+                              const chainIconSrc = NETWORK_ICONS[networkKey || ''];
+                              if (chainIconSrc) {
+                                return (
+                                  <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-white rounded-full flex items-center justify-center border border-gray-200 overflow-hidden">
                                       <Image src={chainIconSrc} alt="" width={10} height={10} className="w-full h-full object-cover" />
-                                    </div>
-                                  );
-                                }
-                                return null;
-                              })()}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-xs font-medium text-gray-700 truncate">{pt.symbol}</p>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            })()}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-medium text-gray-700 truncate">{pt.symbol}</p>
                               <p className="text-[11px] text-gray-400 truncate">{pt.name ?? token.symbol}</p>
-                            </div>
-                          </div>
-                          {/* Amount Column */}
-                          <div className="flex items-center">
-                            <p className="text-xs text-gray-600">{pt.amount}</p>
-                          </div>
-                          {/* USD Value Column */}
-                          <div className="flex items-center">
-                            <p className="text-xs text-gray-700">{pt.usdValue ?? '—'}</p>
                           </div>
                         </div>
-                      ))}
+                        {/* Amount Column */}
+                        <div className="flex items-center">
+                          <p className="text-xs text-gray-600">{pt.amount}</p>
+                        </div>
+                        {/* USD Value Column */}
+                        <div className="flex items-center">
+                          <p className="text-xs text-gray-700">{pt.usdValue ?? '—'}</p>
+                        </div>
+                      </div>
+                    ))}
                     </div>
                     
                     {/* Mobile expanded positions */}
@@ -563,19 +630,19 @@ export const TokenList = () => {
                       {protocolTokensMap.get(token.symbol.toLowerCase().replace(' ', ''))?.slice(0, 6).map((pt, idx) => (
                         <div
                           key={`${token.symbol.toLowerCase()}-${pt.contractAddress}-${pt.network}-${idx}`}
-                          className="px-4 py-3 border-b border-gray-100 last:border-b-0"
+                          className="px-8 py-3 border-b border-gray-100 last:border-b-0 bg-gray-50/50"
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-3">
                               <div className="relative">
-                                <TokenIcon logo={pt.logo} symbol={pt.symbol} size={28} />
+                                <TokenIcon logo={pt.logo} symbol={pt.symbol} size={32} />
                                 {(() => {
                                   const networkKey = Object.entries(NETWORK_NAMES).find(([, name]) => name === pt.network)?.[0];
                                   const chainIconSrc = NETWORK_ICONS[networkKey || ''];
                                   if (chainIconSrc) {
                                     return (
-                                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full flex items-center justify-center border border-gray-200 overflow-hidden">
-                                        <Image src={chainIconSrc} alt="" width={12} height={12} className="w-full h-full object-cover" />
+                                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center border border-gray-200 overflow-hidden">
+                                        <Image src={chainIconSrc} alt="" width={14} height={14} className="w-full h-full object-cover" />
                                       </div>
                                     );
                                   }
@@ -583,12 +650,12 @@ export const TokenList = () => {
                                 })()}
                               </div>
                               <div>
-                                <p className="text-sm font-medium text-gray-700">{pt.symbol}</p>
+                                <p className="text-sm font-semibold text-gray-700">{pt.symbol}</p>
                                 <p className="text-xs text-gray-500">{pt.name ?? token.symbol}</p>
                               </div>
                             </div>
                             <div className="text-right">
-                              <p className="text-sm font-medium text-gray-700">{pt.usdValue ?? '—'}</p>
+                              <p className="text-sm font-semibold text-gray-700">{pt.usdValue ?? '—'}</p>
                               <p className="text-xs text-gray-500">{pt.amount}</p>
                             </div>
                           </div>
@@ -617,56 +684,56 @@ export const TokenList = () => {
                   <div className="border-t border-gray-100">
                     {/* Desktop hidden tokens */}
                     <div className="hidden sm:block">
-                      {categorizedTokens.hiddenTokens.map((token, index) => (
-                        <div
-                          key={`hidden-${token.contractAddress}-${token.network}-${index}`}
-                          className="grid grid-cols-3 gap-4 px-4 py-2 border-b border-gray-50 last:border-b-0 hover:bg-gray-50 transition-colors"
-                        >
-                          {/* Asset Column */}
-                          <div className="flex items-center space-x-2">
-                            <div className="relative">
-                              <TokenIcon 
-                                logo={token.logo} 
-                                symbol={token.symbol} 
-                                size={20}
-                              />
-                              {/* Chain Icon - only show if not empty */}
-                              {(() => {
-                                const networkKey = Object.entries(NETWORK_NAMES).find(([, name]) => name === token.network)?.[0];
-                                const chainIconSrc = NETWORK_ICONS[networkKey || ''];
-                                if (chainIconSrc) {
-                                  return (
-                                    <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-white rounded-full flex items-center justify-center border border-gray-200 overflow-hidden">
+                    {categorizedTokens.hiddenTokens.map((token, index) => (
+                      <div
+                        key={`hidden-${token.contractAddress}-${token.network}-${index}`}
+                        className="grid grid-cols-3 gap-4 px-4 py-2 border-b border-gray-50 last:border-b-0 hover:bg-gray-50 transition-colors"
+                      >
+                        {/* Asset Column */}
+                        <div className="flex items-center space-x-2">
+                          <div className="relative">
+                            <TokenIcon 
+                              logo={token.logo} 
+                              symbol={token.symbol} 
+                              size={20}
+                            />
+                            {/* Chain Icon - only show if not empty */}
+                            {(() => {
+                              const networkKey = Object.entries(NETWORK_NAMES).find(([, name]) => name === token.network)?.[0];
+                              const chainIconSrc = NETWORK_ICONS[networkKey || ''];
+                              if (chainIconSrc) {
+                                return (
+                                  <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-white rounded-full flex items-center justify-center border border-gray-200 overflow-hidden">
                                       <Image src={chainIconSrc} alt="" width={10} height={10} className="w-full h-full object-cover" />
-                                    </div>
-                                  );
-                                }
-                                return null;
-                              })()}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-xs font-medium text-gray-600 truncate">{token.symbol}</p>
-                              <p className="text-xs text-gray-400 truncate">
-                                {token.price ? `$${token.price.toLocaleString(undefined, { maximumFractionDigits: 4 })}` : '—'}
-                              </p>
-                            </div>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            })()}
                           </div>
-                          
-                          {/* Amount Column */}
-                          <div className="flex items-center">
-                            <p className="text-xs text-gray-500">
-                              {token.amount}
-                            </p>
-                          </div>
-                          
-                          {/* USD Value Column */}
-                          <div className="flex items-center">
-                            <p className="text-xs text-gray-500">
-                              {token.usdValue ?? '<$0.01'}
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-medium text-gray-600 truncate">{token.symbol}</p>
+                            <p className="text-xs text-gray-400 truncate">
+                              {token.price ? `$${token.price.toLocaleString(undefined, { maximumFractionDigits: 4 })}` : '—'}
                             </p>
                           </div>
                         </div>
-                      ))}
+                        
+                        {/* Amount Column */}
+                        <div className="flex items-center">
+                          <p className="text-xs text-gray-500">
+                            {token.amount}
+                          </p>
+                        </div>
+                        
+                        {/* USD Value Column */}
+                        <div className="flex items-center">
+                          <p className="text-xs text-gray-500">
+                            {token.usdValue ?? '<$0.01'}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                     </div>
                     
                     {/* Mobile hidden tokens */}
