@@ -204,15 +204,87 @@ export function HealthScore() {
     }
     const chains = [...byChain.entries()].sort((a, b) => b[1] - a[1]);
 
-    // scoring
-    let score = 90;
-    if (topShare > 0.6) score -= 20; else if (topShare > 0.4) score -= 10;
-    if (stableShare < 0.1) score -= 10; else if (stableShare > 0.8) score -= 5;
-    if (chains.length < 2) score -= 5;
-    if (totalUsd < 10) score = Math.min(score, 70); // low portfolio size confidence
+    // Enhanced scoring algorithm - more realistic and comprehensive
+    let score = 75; // Start with a reasonable baseline
+    
+    // Portfolio size considerations (more nuanced)
+    if (totalUsd < 1) score = Math.min(score, 45); // Very small portfolio
+    else if (totalUsd < 10) score = Math.min(score, 60); // Small portfolio
+    else if (totalUsd < 100) score = Math.min(score, 70); // Medium portfolio
+    else if (totalUsd < 1000) score = Math.min(score, 80); // Large portfolio
+    else score = Math.min(score, 85); // Very large portfolio
+    
+    // Top asset concentration (more forgiving)
+    if (topShare > 0.8) score -= 25; // Extremely concentrated
+    else if (topShare > 0.6) score -= 15; // Highly concentrated
+    else if (topShare > 0.4) score -= 8; // Moderately concentrated
+    else if (topShare < 0.1) score += 5; // Very diversified
+    
+    // Stablecoin allocation (more balanced approach)
+    if (stableShare > 0.9) score -= 10; // Too much in stables (missed growth)
+    else if (stableShare > 0.7) score -= 5; // High stable allocation
+    else if (stableShare < 0.05) score -= 12; // Very low stable allocation (risky)
+    else if (stableShare >= 0.1 && stableShare <= 0.3) score += 8; // Good stable range
+    
+    // Chain diversification (more important)
+    if (chains.length >= 4) score += 10; // Excellent diversification
+    else if (chains.length === 3) score += 6; // Good diversification
+    else if (chains.length === 2) score += 2; // Basic diversification
+    else if (chains.length === 1) score -= 8; // Single chain risk
+    
+    // DeFi activity bonus (PoolTogether, Aave, etc.)
+    const defiTokens = tokens.filter(t => {
+      const symbol = t.symbol.toUpperCase();
+      const name = t.name.toLowerCase();
+      return (
+        symbol.includes('PRZ') || // PoolTogether prize tokens
+        symbol.includes('A') || // Aave tokens
+        name.includes('pooltogether') ||
+        name.includes('aave') ||
+        name.includes('compound') ||
+        name.includes('yearn') ||
+        symbol.includes('CRV') || // Curve
+        symbol.includes('UNI') || // Uniswap LP tokens
+        symbol.includes('BAL') || // Balancer
+        symbol.includes('SUSHI') // SushiSwap
+      );
+    });
+    
+    if (defiTokens.length > 0) {
+      const defiValue = defiTokens.reduce((sum, t) => sum + (t.usd ?? 0), 0);
+      const defiShare = totalUsd > 0 ? defiValue / totalUsd : 0;
+      
+      if (defiShare > 0.3) score += 12; // Heavy DeFi user
+      else if (defiShare > 0.1) score += 8; // Moderate DeFi user
+      else if (defiShare > 0.05) score += 4; // Light DeFi user
+    }
+    
+    // Token count bonus (diversification)
+    const uniqueTokens = new Set(tokens.map(t => t.symbol)).size;
+    if (uniqueTokens >= 15) score += 8; // Very diversified
+    else if (uniqueTokens >= 10) score += 5; // Well diversified
+    else if (uniqueTokens >= 5) score += 2; // Moderately diversified
+    else if (uniqueTokens <= 2) score -= 5; // Very concentrated
+    
+    // Risk assessment
+    const highRiskTokens = tokens.filter(t => {
+      const symbol = t.symbol.toUpperCase();
+      return symbol.includes('MEME') || symbol.includes('DOGE') || symbol.includes('SHIB');
+    });
+    
+    if (highRiskTokens.length > 0) {
+      const riskValue = highRiskTokens.reduce((sum, t) => sum + (t.usd ?? 0), 0);
+      const riskShare = totalUsd > 0 ? riskValue / totalUsd : 0;
+      
+      if (riskShare > 0.2) score -= 8; // High meme token exposure
+      else if (riskShare > 0.1) score -= 4; // Moderate meme token exposure
+    }
+    
+    // Final score bounds
     score = Math.max(0, Math.min(100, score));
-
-    const grade = score >= 90 ? 'A' : score >= 80 ? 'B' : score >= 70 ? 'C' : score >= 60 ? 'D' : 'E';
+    
+    // Grade assignment (more nuanced)
+    const grade = score >= 85 ? 'A' : score >= 75 ? 'B' : score >= 65 ? 'C' : score >= 55 ? 'D' : 'F';
     return { score, grade, totalUsd, topSymbol, topShare, stableShare, chains };
   }, [tokens]);
 
@@ -251,7 +323,7 @@ export function HealthScore() {
                 {summary.score}/100
                 <span 
                   className="text-xs text-zinc-500 cursor-help"
-                  title="Score based on: Top asset concentration (60%+ = -20pts, 40%+ = -10pts), Stablecoin allocation (<10% = -10pts, >80% = -5pts), Chain diversification (<2 chains = -5pts), Portfolio size (<$10 = max 70pts)"
+                  title="Enhanced scoring: Portfolio size (baseline 75), concentration penalties (-8 to -25), stablecoin balance (10-30% optimal), chain diversification (+2 to +10), DeFi activity bonus (+4 to +12), token diversity (+2 to +8), meme token penalties (-4 to -8)"
                 >
                   ⓘ
                 </span>
@@ -270,10 +342,10 @@ export function HealthScore() {
             <button
               type="button"
               onClick={openPoolTogether}
-              className="inline-flex items-center gap-2 rounded-lg bg-emerald-100 text-emerald-700 px-3 py-2 text-xs font-semibold shadow-sm hover:bg-emerald-200 transition-colors"
+              className="inline-flex items-center gap-2 rounded-lg bg-purple-50 border-2 border-purple-300 text-purple-700 px-4 py-3 text-sm font-semibold shadow-sm hover:bg-purple-100 hover:border-purple-400 transition-all duration-200 transform hover:scale-105"
             >
-              Deposit WLD in PoolTogether
-              <span className="text-[10px] font-normal opacity-70">{availableWld.toLocaleString(undefined, { maximumFractionDigits: 4 })} WLD</span>
+              🎯 Deposit WLD in PoolTogether
+              <span className="text-xs font-normal opacity-80 bg-purple-100 px-2 py-1 rounded-full">{availableWld.toLocaleString(undefined, { maximumFractionDigits: 4 })} WLD</span>
             </button>
           </div>
         )}
@@ -307,12 +379,14 @@ export function HealthScore() {
           <section className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 bg-gradient-to-br from-emerald-50 to-green-50 dark:bg-zinc-950">
             <h3 className="text-sm font-semibold mb-1 text-emerald-800">Suggestions</h3>
             <ul className="list-disc pl-5 space-y-1 text-sm text-zinc-700 dark:text-zinc-300">
-              {summary.topShare > 0.5 && <li>Reduce reliance on your top asset by swapping a portion into stables.</li>}
-              {summary.stableShare < 0.15 && <li>Increase stablecoin buffer for volatility protection (10–30%).</li>}
-              {summary.chains.length < 2 && <li>Diversify across an L2 (e.g., Base or Arbitrum) to cut gas and risk.</li>}
-              {summary.topShare <= 0.5 && summary.stableShare >= 0.15 && summary.chains.length >= 2 && (
-                <li>Looking solid. Consider putting idle stables to work for yield.</li>
-              )}
+              {summary.topShare > 0.6 && <li>Reduce concentration in your top asset - consider diversifying into other quality tokens.</li>}
+              {summary.stableShare < 0.1 && <li>Add stablecoin buffer (10-30%) for volatility protection and opportunities.</li>}
+              {summary.stableShare > 0.7 && <li>Consider putting some stables to work in DeFi protocols for yield.</li>}
+              {summary.chains.length < 2 && <li>Diversify across L2s (Base, Arbitrum) to reduce single-chain risk and gas costs.</li>}
+              {summary.chains.length >= 3 && <li>Great chain diversification! Consider exploring DeFi opportunities across your chains.</li>}
+              {availableWld > 0 && <li>Deposit WLD in PoolTogether below to earn prizes and improve your DeFi score!</li>}
+              {summary.score >= 80 && <li>Excellent portfolio health! Keep up the diversification and consider advanced DeFi strategies.</li>}
+              {summary.score < 60 && <li>Focus on diversification: reduce concentration, add stables, explore multiple chains.</li>}
             </ul>
           </section>
         </>
