@@ -1,31 +1,59 @@
 'use client';
-import { CircularIcon, Marble } from '@worldcoin/mini-apps-ui-kit-react';
-import { CheckCircleSolid } from 'iconoir-react';
+import { useMemo } from 'react';
 import { useSession } from 'next-auth/react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
-/**
- * Minikit is only available on client side. Thus user info needs to be rendered on client side.
- * UserInfo component displays user information including profile picture, username, and verification status.
- * It uses the Marble component from the mini-apps-ui-kit-react library to display the profile picture.
- * The component is client-side rendered.
- */
-export const UserInfo = () => {
-  // Fetching the user state client side
-  const session = useSession();
+const ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
+
+export const SelectedWallet = () => {
+  const { data } = useSession();
+  const params = useSearchParams();
+  const router = useRouter();
+
+  const activeAddress = useMemo(() => {
+    const q = params.get('address');
+    if (q && ADDRESS_REGEX.test(q)) return q as `0x${string}`;
+    return (data?.user?.walletAddress as `0x${string}` | undefined) ?? undefined;
+  }, [params, data]);
+
+  const isMyWallet = useMemo(() => {
+    const myAddr = data?.user?.walletAddress as `0x${string}` | undefined;
+    return myAddr && activeAddress && myAddr.toLowerCase() === activeAddress.toLowerCase();
+  }, [activeAddress, data]);
+
+  const shorten = (addr?: string, n = 4) => {
+    if (!addr) return '—';
+    return `${addr.slice(0, n + 2)}…${addr.slice(-n)}`;
+  };
+
+  const handleMyWallet = () => {
+    const next = new URLSearchParams(params.toString());
+    const my = data?.user?.walletAddress as `0x${string}` | undefined;
+    if (my) {
+      next.set('address', my);
+    } else {
+      next.delete('address');
+    }
+    router.push(`?${next.toString()}`);
+  };
 
   return (
-    <div className="flex flex-row items-center justify-start gap-4 rounded-xl w-full border-2 border-gray-200 p-4">
-      <Marble src={session?.data?.user?.profilePictureUrl} className="w-14" />
-      <div className="flex flex-row items-center justify-center">
-        <span className="text-lg font-semibold capitalize">
-          {session?.data?.user?.username}
-        </span>
-        {session?.data?.user?.profilePictureUrl && (
-          <CircularIcon size="sm" className="ml-0">
-            <CheckCircleSolid className="text-blue-600" />
-          </CircularIcon>
-        )}
+    <div className="rounded-xl border border-zinc-200 bg-white px-3 py-2 flex items-center justify-between">
+      <div className="min-w-0">
+        <div className="text-xs text-zinc-500">Viewing wallet</div>
+        <div className="text-sm font-mono text-zinc-800 truncate max-w-[240px]">
+          {shorten(activeAddress)}
+        </div>
       </div>
+      <button
+        type="button"
+        onClick={handleMyWallet}
+        className="text-xs px-2 py-1 rounded-md border border-zinc-200 text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+        disabled={isMyWallet}
+        title={isMyWallet ? 'Already showing your wallet' : 'Switch to my wallet'}
+      >
+        My Wallet
+      </button>
     </div>
   );
 };
