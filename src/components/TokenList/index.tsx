@@ -137,7 +137,7 @@ export const TokenList = () => {
   const { portfolioTokens, loading, error, totalValue } = usePortfolioData();
   
   const [showAllTokens, setShowAllTokens] = useState(false);
-  const [showPoolTogether, setShowPoolTogether] = useState(false);
+  const [expandedProtocols, setExpandedProtocols] = useState<Set<string>>(new Set());
 
   const formattedTotal = useMemo(
     () =>
@@ -151,67 +151,163 @@ export const TokenList = () => {
   // Show partial results while loading
   const displayTokens = portfolioTokens;
 
-  // Extract PoolTogether/prize tokens for optional expansion rendering
-  const poolTokensList = useMemo(() => {
-    if (!displayTokens) return [] as PortfolioToken[];
-    const poolRegex = /(pooltogether|prize|prz)/i;
-    return displayTokens.filter((t) => {
-      const tokenName = (t.name ?? '');
-      return poolRegex.test(t.symbol) || poolRegex.test(tokenName);
-    });
+  // Extract protocol tokens for optional expansion rendering
+  const protocolTokensMap = useMemo(() => {
+    if (!displayTokens) return new Map<string, PortfolioToken[]>();
+    
+    const protocolPatterns = {
+      pooltogether: /(pooltogether|prize|prz)/i,
+      aave: /(aave|a[A-Z]|am[A-Z]|variableDebt|stableDebt)/i,
+      compound: /(compound|c[A-Z]|cETH|cUSDC|cDAI)/i,
+      uniswap: /(uniswap|uni|v2|v3|LP|UNI-V2|UNI-V3)/i,
+      curve: /(curve|crv|3crv|steth|gusd|y|busd)/i,
+      lido: /(lido|steth|stETH|wstETH)/i,
+      rocketpool: /(rocketpool|rETH|rETH2)/i,
+      makerdao: /(maker|dai|mkr|makerdao)/i
+    };
+
+    const protocolGroups = new Map<string, PortfolioToken[]>();
+    
+    for (const token of displayTokens) {
+      const tokenName = token.name ?? '';
+      const tokenSymbol = token.symbol ?? '';
+      
+      for (const [protocolKey, regex] of Object.entries(protocolPatterns)) {
+        if (regex.test(tokenSymbol) || regex.test(tokenName)) {
+          if (!protocolGroups.has(protocolKey)) {
+            protocolGroups.set(protocolKey, []);
+          }
+          protocolGroups.get(protocolKey)!.push(token);
+          break;
+        }
+      }
+    }
+    
+    return protocolGroups;
   }, [displayTokens]);
 
-  // Group tokens by popular protocols (e.g., PoolTogether)
+  // Group tokens by popular protocols (e.g., PoolTogether, Aave, Staking)
   const groupedTokens = useMemo(() => {
     if (!displayTokens) return [] as PortfolioToken[];
-    const poolRegex = /(pooltogether|prize|prz)/i;
+    
+    // Define protocol patterns
+    const protocolPatterns = {
+      pooltogether: {
+        regex: /(pooltogether|prize|prz)/i,
+        name: 'PoolTogether',
+        icon: '🎯'
+      },
+      aave: {
+        regex: /(aave|a[A-Z]|am[A-Z]|variableDebt|stableDebt)/i,
+        name: 'Aave',
+        icon: '🏦'
+      },
+      compound: {
+        regex: /(compound|c[A-Z]|cETH|cUSDC|cDAI)/i,
+        name: 'Compound',
+        icon: '💰'
+      },
+      uniswap: {
+        regex: /(uniswap|uni|v2|v3|LP|UNI-V2|UNI-V3)/i,
+        name: 'Uniswap',
+        icon: '🔄'
+      },
+      curve: {
+        regex: /(curve|crv|3crv|steth|gusd|y|busd)/i,
+        name: 'Curve',
+        icon: '📈'
+      },
+      lido: {
+        regex: /(lido|steth|stETH|wstETH)/i,
+        name: 'Lido',
+        icon: '🏛️'
+      },
+      rocketpool: {
+        regex: /(rocketpool|rETH|rETH2)/i,
+        name: 'Rocket Pool',
+        icon: '🚀'
+      },
+      makerdao: {
+        regex: /(maker|dai|mkr|makerdao)/i,
+        name: 'MakerDAO',
+        icon: '⚖️'
+      }
+    };
 
-    const poolTokens: PortfolioToken[] = [];
+    // Group tokens by protocol
+    const protocolGroups: Record<string, PortfolioToken[]> = {};
     const others: PortfolioToken[] = [];
-    for (const t of displayTokens) {
-      const tokenName: string = t.name ?? '';
-      if (poolRegex.test(t.symbol) || poolRegex.test(tokenName)) {
-        poolTokens.push(t);
-      } else {
-        others.push(t);
+
+    for (const token of displayTokens) {
+      const tokenName = token.name ?? '';
+      const tokenSymbol = token.symbol ?? '';
+      
+      let matched = false;
+      
+      for (const [protocolKey, protocol] of Object.entries(protocolPatterns)) {
+        if (protocol.regex.test(tokenSymbol) || protocol.regex.test(tokenName)) {
+          if (!protocolGroups[protocolKey]) {
+            protocolGroups[protocolKey] = [];
+          }
+          protocolGroups[protocolKey].push(token);
+          matched = true;
+          break;
+        }
+      }
+      
+      if (!matched) {
+        others.push(token);
       }
     }
 
-    if (poolTokens.length === 0) return displayTokens;
+    // Create group tokens for each protocol
+    const groupTokens: PortfolioToken[] = [];
+    
+    for (const [protocolKey, tokens] of Object.entries(protocolGroups)) {
+      if (tokens.length > 0) {
+        const protocol = protocolPatterns[protocolKey as keyof typeof protocolPatterns];
+        const totalUsd = tokens.reduce((sum, t) => sum + (t.usdValueNumber ?? 0), 0);
+        
+        const groupToken: PortfolioToken = {
+          symbol: protocol.name,
+          name: protocol.name,
+          amount: `${tokens.length} pos`,
+          amountNumber: 0,
+          usdValueNumber: totalUsd,
+          usdValue: `$${totalUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
+          network: protocol.name,
+          logo: null,
+          price: undefined,
+          contractAddress: undefined,
+        };
+        
+        groupTokens.push(groupToken);
+      }
+    }
 
-    const totalUsd = poolTokens.reduce((sum, t) => sum + (t.usdValueNumber ?? 0), 0);
+    // Sort group tokens by USD value (highest first)
+    groupTokens.sort((a, b) => (b.usdValueNumber ?? 0) - (a.usdValueNumber ?? 0));
 
-    const groupToken: PortfolioToken = {
-      symbol: 'PoolTogether',
-      name: 'PoolTogether',
-      amount: `${poolTokens.length} pos`,
-      amountNumber: 0,
-      usdValueNumber: totalUsd,
-      usdValue: `$${totalUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
-      network: 'PoolTogether',
-      logo: null,
-      price: undefined,
-      contractAddress: undefined,
-    };
-
-    return [groupToken, ...others];
+    return [...groupTokens, ...others];
   }, [displayTokens]);
 
   // Categorize tokens by value
   const categorizedTokens = useMemo(() => {
     if (!groupedTokens) return { mainTokens: [], hiddenTokens: [] } as { mainTokens: PortfolioToken[]; hiddenTokens: PortfolioToken[] };
     
-  // Show tokens with price OR tokens explicitly recognized (e.g., prize tokens) in main list
+  // Show tokens with price OR tokens explicitly recognized (e.g., protocol tokens) in main list
   const mainTokens = groupedTokens.filter(token => {
     const hasUsd = (token.usdValueNumber ?? 0) >= HIDE_TOKEN_THRESHOLD;
-    const looksLikePrize = /prize|pool|prz/i.test(token.symbol) || /Prize|PoolTogether/i.test(token.name ?? '');
-    return hasUsd || looksLikePrize;
+    const looksLikeProtocol = /prize|pool|prz|aave|compound|uniswap|curve|lido|rocket|maker/i.test(token.symbol) || 
+                             /Prize|PoolTogether|Aave|Compound|Uniswap|Curve|Lido|Rocket|Maker/i.test(token.name ?? '');
+    return hasUsd || looksLikeProtocol;
   });
-    
+  
   const hiddenTokens = groupedTokens.filter(token => {
     const hasUsd = (token.usdValueNumber ?? 0) < HIDE_TOKEN_THRESHOLD;
-    const looksLikePrize = /prize|pool|prz/i.test(token.symbol) || /Prize|PoolTogether/i.test(token.name ?? '');
-    return hasUsd && !looksLikePrize;
+    const looksLikeProtocol = /prize|pool|prz|aave|compound|uniswap|curve|lido|rocket|maker/i.test(token.symbol) || 
+                             /Prize|PoolTogether|Aave|Compound|Uniswap|Curve|Lido|Rocket|Maker/i.test(token.name ?? '');
+    return hasUsd && !looksLikeProtocol;
   });
     
     return { mainTokens, hiddenTokens };
@@ -295,12 +391,20 @@ export const TokenList = () => {
                 
                 {/* Amount Column */}
                 <div className="flex items-center">
-                  {token.symbol === 'PoolTogether' ? (
+                  {['PoolTogether', 'Aave', 'Compound', 'Uniswap', 'Curve', 'Lido', 'Rocket Pool', 'MakerDAO'].includes(token.symbol) ? (
                     <button
-                      onClick={() => setShowPoolTogether((v) => !v)}
+                      onClick={() => {
+                        const newExpanded = new Set(expandedProtocols);
+                        if (newExpanded.has(token.symbol)) {
+                          newExpanded.delete(token.symbol);
+                        } else {
+                          newExpanded.add(token.symbol);
+                        }
+                        setExpandedProtocols(newExpanded);
+                      }}
                       className="text-xs text-blue-600 hover:underline"
                     >
-                      {showPoolTogether ? 'Hide positions' : `View positions (${poolTokensList.length})`}
+                      {expandedProtocols.has(token.symbol) ? 'Hide positions' : `View positions (${protocolTokensMap.get(token.symbol.toLowerCase().replace(' ', ''))?.length || 0})`}
                     </button>
                   ) : (
                     <p className="text-xs text-gray-600">
@@ -317,12 +421,14 @@ export const TokenList = () => {
                 </div>
                 </div>
 
-                {/* Inline expanded PoolTogether positions */}
-                {token.symbol === 'PoolTogether' && showPoolTogether && poolTokensList.length > 0 && (
+                {/* Inline expanded protocol positions */}
+                {['PoolTogether', 'Aave', 'Compound', 'Uniswap', 'Curve', 'Lido', 'Rocket Pool', 'MakerDAO'].includes(token.symbol) && 
+                 expandedProtocols.has(token.symbol) && 
+                 (protocolTokensMap.get(token.symbol.toLowerCase().replace(' ', ''))?.length ?? 0) > 0 && (
                   <div className="bg-white">
-                    {poolTokensList.slice(0, 6).map((pt, idx) => (
+                    {protocolTokensMap.get(token.symbol.toLowerCase().replace(' ', ''))?.slice(0, 6).map((pt, idx) => (
                       <div
-                        key={`pt-${pt.contractAddress}-${pt.network}-${idx}`}
+                        key={`${token.symbol.toLowerCase()}-${pt.contractAddress}-${pt.network}-${idx}`}
                         className="grid grid-cols-3 gap-4 px-6 py-2 border-b border-gray-50 last:border-b-0"
                       >
                         {/* Asset Column */}
@@ -344,7 +450,7 @@ export const TokenList = () => {
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="text-xs font-medium text-gray-700 truncate">{pt.symbol}</p>
-                            <p className="text-[11px] text-gray-400 truncate">{pt.name ?? 'PoolTogether'}</p>
+                            <p className="text-[11px] text-gray-400 truncate">{pt.name ?? token.symbol}</p>
                           </div>
                         </div>
                         {/* Amount Column */}
