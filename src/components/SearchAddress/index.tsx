@@ -30,6 +30,7 @@ export const SearchAddress = () => {
   const [showHistory, setShowHistory] = useState(false);
   const [isAddressChanging, setIsAddressChanging] = useState(false);
   const [selectedHistoryAddress, setSelectedHistoryAddress] = useState<string | null>(null);
+  const [isFromHistory, setIsFromHistory] = useState(false);
   // removed isEditing mode; keep input simple and always editable
   
   const { loading } = usePortfolioData();
@@ -44,10 +45,11 @@ export const SearchAddress = () => {
   useEffect(() => {
     setSearchValue(initialAddress);
     setSelectedHistoryAddress(null); // Reset selection when URL changes
+    setIsFromHistory(false); // Reset history flag when URL changes
   }, [initialAddress]);
 
   useEffect(() => {
-    if (!debouncedValue || !isValidAddress) return;
+    if (!debouncedValue || !isValidAddress || isFromHistory) return;
     
     // Check if the address is different from current URL address
     const currentAddress = params.get('address');
@@ -69,7 +71,7 @@ export const SearchAddress = () => {
         setHistory(updated);
       }
     } catch {}
-  }, [debouncedValue, router, params, isValidAddress]);
+  }, [debouncedValue, router, params, isValidAddress, isFromHistory]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,6 +102,7 @@ export const SearchAddress = () => {
     if (!loading && isAddressChanging) {
       setIsAddressChanging(false);
       setSelectedHistoryAddress(null);
+      setIsFromHistory(false);
     }
   }, [loading, isAddressChanging]);
 
@@ -107,6 +110,7 @@ export const SearchAddress = () => {
     // Immediate visual feedback
     setSelectedHistoryAddress(addr);
     setSearchValue(addr);
+    setIsFromHistory(true); // Mark as coming from history to prevent debounced effect
     
     // Check if the address is different from current URL address
     const currentAddress = params.get('address');

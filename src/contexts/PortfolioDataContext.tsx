@@ -486,7 +486,13 @@ export function PortfolioDataProvider({ children }: { children: React.ReactNode 
 
   // Computed values
   const totalValue = useMemo(() => {
-    return tokens.reduce((sum, t) => sum + (t.usd ?? 0), 0);
+    return tokens
+      .filter(t => {
+        // Exclude Curve tokens from total value calculation
+        const isCurve = /curve/i.test(t.symbol) || /Curve/i.test(t.name ?? '') || t.symbol === 'Curve';
+        return !isCurve;
+      })
+      .reduce((sum, t) => sum + (t.usd ?? 0), 0);
   }, [tokens]);
 
   const availableWld = useMemo(() => {

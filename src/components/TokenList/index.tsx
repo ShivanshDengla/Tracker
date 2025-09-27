@@ -215,10 +215,6 @@ const TokenIcon = ({ logo, symbol, size = 24, className = "" }: {
   );
 };
 
-const shortenAddress = (address: string, visibleChars = 4) => {
-  if (!address || address.length <= visibleChars * 2 + 2) return address;
-  return `${address.slice(0, visibleChars + 2)}…${address.slice(-visibleChars)}`;
-};
 
 export const TokenList = () => {
   const session = useSession();
@@ -445,14 +441,6 @@ export const TokenList = () => {
       <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl p-6 text-white">
         <h2 className="text-lg font-semibold mb-2">Portfolio Value</h2>
         <p className="text-3xl font-bold">${formattedTotal}</p>
-        <p className="text-sm opacity-90 mt-1">
-          Viewing:{' '}
-          {queryAddress && ADDRESS_REGEX.test(queryAddress)
-            ? shortenAddress(queryAddress)
-            : walletAddress
-              ? shortenAddress(walletAddress)
-              : 'Unknown Wallet'}
-        </p>
         {loading && (
           <p className="text-xs opacity-75 mt-1">
             Loading portfolio data...
