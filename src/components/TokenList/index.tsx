@@ -342,43 +342,35 @@ export const TokenList = () => {
     const protocolPatterns = {
       pooltogether: {
         regex: /(pooltogether|prize|prz)/i,
-        name: 'PoolTogether',
-        icon: '🎯'
+        name: 'PoolTogether'
       },
       aave: {
         regex: /(aave|^a[A-Z]{2,}$|am[A-Z]{2,}|variableDebt|stableDebt)/i,
-        name: 'Aave',
-        icon: '🏦'
+        name: 'Aave'
       },
       compound: {
         regex: /(compound|^c[A-Z]{2,}$|cETH|cUSDC|cDAI)/i,
-        name: 'Compound',
-        icon: '💰'
+        name: 'Compound'
       },
       uniswap: {
         regex: /(uniswap|uni|v2|v3|LP|UNI-V2|UNI-V3)/i,
-        name: 'Uniswap',
-        icon: '🔄'
+        name: 'Uniswap'
       },
       curve: {
         regex: /(curve|crv|3crv|steth|gusd|y|busd)/i,
-        name: 'Curve',
-        icon: '📈'
+        name: 'Curve'
       },
       lido: {
         regex: /(lido|steth|stETH|wstETH)/i,
-        name: 'Lido',
-        icon: '🏛️'
+        name: 'Lido'
       },
       rocketpool: {
         regex: /(rocketpool|rETH|rETH2)/i,
-        name: 'Rocket Pool',
-        icon: '🚀'
+        name: 'Rocket Pool'
       },
       makerdao: {
         regex: /(maker|dai|mkr|makerdao)/i,
-        name: 'MakerDAO',
-        icon: '⚖️'
+        name: 'MakerDAO'
       }
     };
 
@@ -569,24 +561,24 @@ export const TokenList = () => {
                         }
                         setExpandedProtocols(newExpanded);
                       }}
-                      className={`text-xs font-semibold px-3 py-1.5 rounded-lg border-2 transition-all duration-200 ${
+                      className={`text-xs font-semibold px-3 py-1.5 rounded-lg border-2 transition-all duration-200 shadow-sm ${
                         token.symbol === 'PoolTogether' 
-                          ? 'bg-purple-100 border-purple-500 text-purple-700 hover:bg-purple-200 hover:border-purple-600' 
+                          ? 'bg-purple-100 border-purple-500 text-purple-700 hover:bg-purple-200 hover:border-purple-600 shadow-purple-100' 
                           : token.symbol === 'Aave'
-                          ? 'bg-blue-100 border-blue-500 text-blue-700 hover:bg-blue-200 hover:border-blue-600'
+                          ? 'bg-blue-100 border-blue-500 text-blue-700 hover:bg-blue-200 hover:border-blue-600 shadow-blue-100'
                           : token.symbol === 'Compound'
-                          ? 'bg-green-100 border-green-500 text-green-700 hover:bg-green-200 hover:border-green-600'
+                          ? 'bg-green-100 border-green-500 text-green-700 hover:bg-green-200 hover:border-green-600 shadow-green-100'
                           : token.symbol === 'Uniswap'
-                          ? 'bg-pink-100 border-pink-500 text-pink-700 hover:bg-pink-200 hover:border-pink-600'
+                          ? 'bg-pink-100 border-pink-500 text-pink-700 hover:bg-pink-200 hover:border-pink-600 shadow-pink-100'
                           : token.symbol === 'Curve'
-                          ? 'bg-orange-100 border-orange-500 text-orange-700 hover:bg-orange-200 hover:border-orange-600'
+                          ? 'bg-orange-100 border-orange-500 text-orange-700 hover:bg-orange-200 hover:border-orange-600 shadow-orange-100'
                           : token.symbol === 'Lido'
-                          ? 'bg-indigo-100 border-indigo-500 text-indigo-700 hover:bg-indigo-200 hover:border-indigo-600'
+                          ? 'bg-indigo-100 border-indigo-500 text-indigo-700 hover:bg-indigo-200 hover:border-indigo-600 shadow-indigo-100'
                           : token.symbol === 'Rocket Pool'
-                          ? 'bg-cyan-100 border-cyan-500 text-cyan-700 hover:bg-cyan-200 hover:border-cyan-600'
+                          ? 'bg-cyan-100 border-cyan-500 text-cyan-700 hover:bg-cyan-200 hover:border-cyan-600 shadow-cyan-100'
                           : token.symbol === 'MakerDAO'
-                          ? 'bg-yellow-100 border-yellow-500 text-yellow-700 hover:bg-yellow-200 hover:border-yellow-600'
-                          : 'bg-gray-100 border-gray-500 text-gray-700 hover:bg-gray-200 hover:border-gray-600'
+                          ? 'bg-yellow-100 border-yellow-500 text-yellow-700 hover:bg-yellow-200 hover:border-yellow-600 shadow-yellow-100'
+                          : 'bg-gray-100 border-gray-500 text-gray-700 hover:bg-gray-200 hover:border-gray-600 shadow-gray-100'
                       }`}
                     >
                       {expandedProtocols.has(token.symbol) ? 'Hide positions' : `View positions (${protocolTokensMap.get(token.symbol.toLowerCase().replace(' ', ''))?.length || 0})`}
@@ -657,24 +649,24 @@ export const TokenList = () => {
                               }
                               setExpandedProtocols(newExpanded);
                             }}
-                            className={`text-sm font-semibold px-4 py-2 rounded-lg border-2 transition-all duration-200 ${
+                            className={`text-sm font-semibold px-4 py-2 rounded-lg border-2 transition-all duration-200 shadow-sm ${
                               token.symbol === 'PoolTogether' 
-                                ? 'bg-purple-100 border-purple-500 text-purple-700 hover:bg-purple-200 hover:border-purple-600' 
+                                ? 'bg-purple-100 border-purple-500 text-purple-700 hover:bg-purple-200 hover:border-purple-600 shadow-purple-100' 
                                 : token.symbol === 'Aave'
-                                ? 'bg-blue-100 border-blue-500 text-blue-700 hover:bg-blue-200 hover:border-blue-600'
+                                ? 'bg-blue-100 border-blue-500 text-blue-700 hover:bg-blue-200 hover:border-blue-600 shadow-blue-100'
                                 : token.symbol === 'Compound'
-                                ? 'bg-green-100 border-green-500 text-green-700 hover:bg-green-200 hover:border-green-600'
+                                ? 'bg-green-100 border-green-500 text-green-700 hover:bg-green-200 hover:border-green-600 shadow-green-100'
                                 : token.symbol === 'Uniswap'
-                                ? 'bg-pink-100 border-pink-500 text-pink-700 hover:bg-pink-200 hover:border-pink-600'
+                                ? 'bg-pink-100 border-pink-500 text-pink-700 hover:bg-pink-200 hover:border-pink-600 shadow-pink-100'
                                 : token.symbol === 'Curve'
-                                ? 'bg-orange-100 border-orange-500 text-orange-700 hover:bg-orange-200 hover:border-orange-600'
+                                ? 'bg-orange-100 border-orange-500 text-orange-700 hover:bg-orange-200 hover:border-orange-600 shadow-orange-100'
                                 : token.symbol === 'Lido'
-                                ? 'bg-indigo-100 border-indigo-500 text-indigo-700 hover:bg-indigo-200 hover:border-indigo-600'
+                                ? 'bg-indigo-100 border-indigo-500 text-indigo-700 hover:bg-indigo-200 hover:border-indigo-600 shadow-indigo-100'
                                 : token.symbol === 'Rocket Pool'
-                                ? 'bg-cyan-100 border-cyan-500 text-cyan-700 hover:bg-cyan-200 hover:border-cyan-600'
+                                ? 'bg-cyan-100 border-cyan-500 text-cyan-700 hover:bg-cyan-200 hover:border-cyan-600 shadow-cyan-100'
                                 : token.symbol === 'MakerDAO'
-                                ? 'bg-yellow-100 border-yellow-500 text-yellow-700 hover:bg-yellow-200 hover:border-yellow-600'
-                                : 'bg-gray-100 border-gray-500 text-gray-700 hover:bg-gray-200 hover:border-gray-600'
+                                ? 'bg-yellow-100 border-yellow-500 text-yellow-700 hover:bg-yellow-200 hover:border-yellow-600 shadow-yellow-100'
+                                : 'bg-gray-100 border-gray-500 text-gray-700 hover:bg-gray-200 hover:border-gray-600 shadow-gray-100'
                             }`}
                           >
                             {expandedProtocols.has(token.symbol) ? 'Hide positions' : `View positions (${protocolTokensMap.get(token.symbol.toLowerCase().replace(' ', ''))?.length || 0})`}
