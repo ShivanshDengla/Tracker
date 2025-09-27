@@ -137,7 +137,7 @@ export const SearchAddress = () => {
               type="text"
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value.replace(/\s/g, ''))}
-              placeholder="Enter or paste any EVM address (0x...)"
+              placeholder="Enter or paste any EVM address"
               className="flex-1 border-none bg-transparent text-sm font-medium text-gray-800 placeholder:text-gray-400 focus:outline-none"
               spellCheck={false}
               autoCapitalize="none"
@@ -181,7 +181,7 @@ export const SearchAddress = () => {
             </button>
           </div>
         </div>
-        <div className="mt-2 min-h-[1.25rem]">
+        <div className="mt-1 min-h-[1rem]">
           {!isValidAddress && searchValue ? (
             <p className="text-xs text-red-500">Enter a valid EVM address.</p>
           ) : copied && searchValue ? (

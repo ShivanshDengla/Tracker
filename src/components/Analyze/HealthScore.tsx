@@ -179,116 +179,7 @@ export function HealthScore() {
     run();
   }, [walletAddress, alchemyNetworks]);
 
-  const summary = useMemo(() => {
-    if (!tokens || tokens.length === 0) return null;
-    const withUsd = tokens.map(t => ({ ...t, usd: t.usd ?? 0 }));
-    const totalUsd = withUsd.reduce((s, t) => s + (t.usd ?? 0), 0);
-
-    // group by symbol
-    const bySymbol = new Map<string, number>();
-    for (const t of withUsd) {
-      bySymbol.set(t.symbol, (bySymbol.get(t.symbol) ?? 0) + (t.usd ?? 0));
-    }
-    const symbolTotals = [...bySymbol.entries()].sort((a, b) => b[1] - a[1]);
-    const topSymbol = symbolTotals[0];
-    const topShare = totalUsd > 0 ? (topSymbol?.[1] ?? 0) / totalUsd : 0;
-
-    const STABLES = new Set(['USDC', 'USDT', 'DAI', 'USDC.E', 'USDCe']);
-    const stableUsd = withUsd.filter(t => STABLES.has(t.symbol.toUpperCase())).reduce((s, t) => s + (t.usd ?? 0), 0);
-    const stableShare = totalUsd > 0 ? stableUsd / totalUsd : 0;
-
-    // chain distribution
-    const byChain = new Map<string, number>();
-    for (const t of withUsd) {
-      byChain.set(t.network, (byChain.get(t.network) ?? 0) + (t.usd ?? 0));
-    }
-    const chains = [...byChain.entries()].sort((a, b) => b[1] - a[1]);
-
-    // Enhanced scoring algorithm - more realistic and comprehensive
-    let score = 75; // Start with a reasonable baseline
-    
-    // Portfolio size considerations (more nuanced)
-    if (totalUsd < 1) score = Math.min(score, 45); // Very small portfolio
-    else if (totalUsd < 10) score = Math.min(score, 60); // Small portfolio
-    else if (totalUsd < 100) score = Math.min(score, 70); // Medium portfolio
-    else if (totalUsd < 1000) score = Math.min(score, 80); // Large portfolio
-    else score = Math.min(score, 85); // Very large portfolio
-    
-    // Top asset concentration (more forgiving)
-    if (topShare > 0.8) score -= 25; // Extremely concentrated
-    else if (topShare > 0.6) score -= 15; // Highly concentrated
-    else if (topShare > 0.4) score -= 8; // Moderately concentrated
-    else if (topShare < 0.1) score += 5; // Very diversified
-    
-    // Stablecoin allocation (more balanced approach)
-    if (stableShare > 0.9) score -= 10; // Too much in stables (missed growth)
-    else if (stableShare > 0.7) score -= 5; // High stable allocation
-    else if (stableShare < 0.05) score -= 12; // Very low stable allocation (risky)
-    else if (stableShare >= 0.1 && stableShare <= 0.3) score += 8; // Good stable range
-    
-    // Chain diversification (more important)
-    if (chains.length >= 4) score += 10; // Excellent diversification
-    else if (chains.length === 3) score += 6; // Good diversification
-    else if (chains.length === 2) score += 2; // Basic diversification
-    else if (chains.length === 1) score -= 8; // Single chain risk
-    
-    // DeFi activity bonus (PoolTogether, Aave, etc.)
-    const defiTokens = tokens.filter(t => {
-      const symbol = t.symbol.toUpperCase();
-      const name = t.name.toLowerCase();
-      return (
-        symbol.includes('PRZ') || // PoolTogether prize tokens
-        symbol.includes('A') || // Aave tokens
-        name.includes('pooltogether') ||
-        name.includes('aave') ||
-        name.includes('compound') ||
-        name.includes('yearn') ||
-        symbol.includes('CRV') || // Curve
-        symbol.includes('UNI') || // Uniswap LP tokens
-        symbol.includes('BAL') || // Balancer
-        symbol.includes('SUSHI') // SushiSwap
-      );
-    });
-    
-    if (defiTokens.length > 0) {
-      const defiValue = defiTokens.reduce((sum, t) => sum + (t.usd ?? 0), 0);
-      const defiShare = totalUsd > 0 ? defiValue / totalUsd : 0;
-      
-      if (defiShare > 0.3) score += 12; // Heavy DeFi user
-      else if (defiShare > 0.1) score += 8; // Moderate DeFi user
-      else if (defiShare > 0.05) score += 4; // Light DeFi user
-    }
-    
-    // Token count bonus (diversification)
-    const uniqueTokens = new Set(tokens.map(t => t.symbol)).size;
-    if (uniqueTokens >= 15) score += 8; // Very diversified
-    else if (uniqueTokens >= 10) score += 5; // Well diversified
-    else if (uniqueTokens >= 5) score += 2; // Moderately diversified
-    else if (uniqueTokens <= 2) score -= 5; // Very concentrated
-    
-    // Risk assessment
-    const highRiskTokens = tokens.filter(t => {
-      const symbol = t.symbol.toUpperCase();
-      return symbol.includes('MEME') || symbol.includes('DOGE') || symbol.includes('SHIB');
-    });
-    
-    if (highRiskTokens.length > 0) {
-      const riskValue = highRiskTokens.reduce((sum, t) => sum + (t.usd ?? 0), 0);
-      const riskShare = totalUsd > 0 ? riskValue / totalUsd : 0;
-      
-      if (riskShare > 0.2) score -= 8; // High meme token exposure
-      else if (riskShare > 0.1) score -= 4; // Moderate meme token exposure
-    }
-    
-    // Final score bounds
-    score = Math.max(0, Math.min(100, score));
-    
-    // Grade assignment (more nuanced)
-    const grade = score >= 85 ? 'A' : score >= 75 ? 'B' : score >= 65 ? 'C' : score >= 55 ? 'D' : 'F';
-    return { score, grade, totalUsd, topSymbol, topShare, stableShare, chains };
-  }, [tokens]);
-
-  // Compute available WLD across networks
+  // Compute available tokens for suggested actions
   const availableWld = useMemo(() => {
     if (!tokens) return 0;
     return tokens
@@ -296,9 +187,31 @@ export function HealthScore() {
       .reduce((sum, t) => sum + (t.amount || 0), 0);
   }, [tokens]);
 
+  const availableUsdc = useMemo(() => {
+    if (!tokens) return 0;
+    return tokens
+      .filter((t) => (t.symbol || '').toUpperCase() === 'USDC')
+      .reduce((sum, t) => sum + (t.amount || 0), 0);
+  }, [tokens]);
+
   const openPoolTogether = useCallback(() => {
-    // Universal deeplink to PoolTogether mini app. If World App is installed, it opens in-app.
     const appId = 'app_85f4c411dc00aadabc96cce7b3a77219';
+    const url = `https://world.org/mini-app?app_id=${encodeURIComponent(appId)}`;
+    if (typeof window !== 'undefined') {
+      window.location.href = url;
+    }
+  }, []);
+
+  const openUno = useCallback(() => {
+    const appId = 'app_a4f7f3e62c1de0b9490a5260cb390b56';
+    const url = `https://world.org/mini-app?app_id=${encodeURIComponent(appId)}`;
+    if (typeof window !== 'undefined') {
+      window.location.href = url;
+    }
+  }, []);
+
+  const openAddMoney = useCallback(() => {
+    const appId = 'app_e7d27c5ce2234e00558776f227f791ef';
     const url = `https://world.org/mini-app?app_id=${encodeURIComponent(appId)}`;
     if (typeof window !== 'undefined') {
       window.location.href = url;
@@ -307,87 +220,87 @@ export function HealthScore() {
 
   return (
     <div className="space-y-4">
-      {/* Hero Score Card */}
-      <section className="rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 bg-gradient-to-r from-emerald-50 to-green-50 dark:from-zinc-900 dark:to-zinc-900">
+      {/* Suggested Actions Header */}
+      <section className="rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-zinc-900 dark:to-zinc-900">
         <div className="flex items-center gap-3">
-          <span className="inline-block w-2 h-2 rounded-full bg-emerald-600" />
-          <h2 className="text-base font-semibold">Portfolio Health</h2>
+          <span className="inline-block w-2 h-2 rounded-full bg-blue-600" />
+          <h2 className="text-base font-semibold">Suggested Actions</h2>
         </div>
-        {summary ? (
-          <div className="mt-3 flex items-center gap-4">
-            <div className={`w-16 h-16 rounded-full text-white flex items-center justify-center text-2xl font-bold ${summary.score >= 90 ? 'bg-green-600' : summary.score >= 80 ? 'bg-emerald-600' : summary.score >= 70 ? 'bg-yellow-600' : summary.score >= 60 ? 'bg-orange-600' : 'bg-red-600'}`}>
-              {summary.score >= 90 ? '✓' : summary.score >= 80 ? '✓' : summary.score >= 70 ? '⚠' : summary.score >= 60 ? '⚠' : '!'}
-            </div>
-            <div>
-              <div className="text-2xl font-extrabold text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
-                {summary.score}/100
-                <span 
-                  className="text-xs text-zinc-500 cursor-help"
-                  title="Enhanced scoring: Portfolio size (baseline 75), concentration penalties (-8 to -25), stablecoin balance (10-30% optimal), chain diversification (+2 to +10), DeFi activity bonus (+4 to +12), token diversity (+2 to +8), meme token penalties (-4 to -8)"
-                >
-                  ⓘ
-                </span>
-              </div>
-              <div className="text-xs text-zinc-600 dark:text-zinc-400">Simple heuristic score for quick guidance</div>
-            </div>
-          </div>
-        ) : (
-          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Connect a wallet or enter an address to analyze.</p>
-        )}
-
-        {/* Recommended Actions */}
-        {summary && availableWld > 0 && (
-          <div className="mt-4">
-            <h3 className="text-sm font-semibold mb-2 text-emerald-800">Recommended Actions</h3>
-            <button
-              type="button"
-              onClick={openPoolTogether}
-              className="inline-flex items-center gap-2 rounded-lg bg-purple-50 border-2 border-purple-300 text-purple-700 px-4 py-3 text-sm font-semibold shadow-sm hover:bg-purple-100 hover:border-purple-400 transition-all duration-200 transform hover:scale-105"
-            >
-              🎯 Deposit WLD in PoolTogether
-              <span className="text-xs font-normal opacity-80 bg-purple-100 px-2 py-1 rounded-full">{availableWld.toLocaleString(undefined, { maximumFractionDigits: 4 })} WLD</span>
-            </button>
-          </div>
-        )}
+        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+          Optimize your portfolio with these recommended actions
+        </p>
       </section>
 
       {!walletAddress && (
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">Connect a wallet on the Tracker tab to analyze.</p>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">Connect a wallet on the Tracker tab to see suggestions.</p>
       )}
-      {loading && <p className="text-sm text-zinc-600 dark:text-zinc-400">Analyzing…</p>}
+      {loading && <p className="text-sm text-zinc-600 dark:text-zinc-400">Analyzing portfolio…</p>}
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      {summary && (
+      {tokens && tokens.length > 0 && (
         <>
-          {/* Metrics grid */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-3 bg-gradient-to-br from-emerald-50 to-green-50 dark:bg-zinc-950">
-              <div className="text-xs text-zinc-500">Top concentration</div>
-              <div className="mt-1 text-lg font-bold">{Math.round(summary.topShare * 100)}% {summary.topSymbol?.[0] ? `(${summary.topSymbol[0]})` : ''}</div>
-            </div>
-            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-3 bg-gradient-to-br from-emerald-50 to-green-50 dark:bg-zinc-950">
-              <div className="text-xs text-zinc-500">Stable allocation</div>
-              <div className="mt-1 text-lg font-bold">{Math.round(summary.stableShare * 100)}%</div>
-            </div>
-            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-3 bg-gradient-to-br from-emerald-50 to-green-50 dark:bg-zinc-950">
-              <div className="text-xs text-zinc-500">Chains used</div>
-              <div className="mt-1 text-lg font-bold">{summary.chains.length}</div>
-            </div>
-          </div>
+          {/* PoolTogether WLD Deposit */}
+          {availableWld > 0 && (
+            <section className="rounded-2xl border-2 border-purple-300 p-5 bg-gradient-to-r from-purple-50 to-purple-100">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-8 h-8 rounded-full bg-purple-200 flex items-center justify-center">
+                  <span className="text-purple-700 font-bold">🎯</span>
+                </div>
+                <h3 className="text-lg font-semibold text-purple-800">PoolTogether Deposit</h3>
+              </div>
+              <p className="text-sm text-purple-700 mb-4">
+                You have <span className="font-bold">{availableWld.toLocaleString(undefined, { maximumFractionDigits: 4 })} WLD</span> which can be deposited to PoolTogether to potentially save and win prizes!
+              </p>
+              <button
+                type="button"
+                onClick={openPoolTogether}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-purple-600 text-white px-4 py-3 text-sm font-semibold shadow-sm hover:bg-purple-700 transition-all duration-200 transform hover:scale-105"
+              >
+                🎯 Deposit WLD in PoolTogether
+              </button>
+            </section>
+          )}
 
-          {/* Suggestions */}
-          <section className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 bg-gradient-to-br from-emerald-50 to-green-50 dark:bg-zinc-950">
-            <h3 className="text-sm font-semibold mb-1 text-emerald-800">Suggestions</h3>
-            <ul className="list-disc pl-5 space-y-1 text-sm text-zinc-700 dark:text-zinc-300">
-              {summary.topShare > 0.6 && <li>Reduce concentration in your top asset - consider diversifying into other quality tokens.</li>}
-              {summary.stableShare < 0.1 && <li>Add stablecoin buffer (10-30%) for volatility protection and opportunities.</li>}
-              {summary.stableShare > 0.7 && <li>Consider putting some stables to work in DeFi protocols for yield.</li>}
-              {summary.chains.length < 2 && <li>Diversify across L2s (Base, Arbitrum) to reduce single-chain risk and gas costs.</li>}
-              {summary.chains.length >= 3 && <li>Great chain diversification! Consider exploring DeFi opportunities across your chains.</li>}
-              {availableWld > 0 && <li>Deposit WLD in PoolTogether below to earn prizes and improve your DeFi score!</li>}
-              {summary.score >= 80 && <li>Excellent portfolio health! Keep up the diversification and consider advanced DeFi strategies.</li>}
-              {summary.score < 60 && <li>Focus on diversification: reduce concentration, add stables, explore multiple chains.</li>}
-            </ul>
+          {/* UNO USDC to WLD Conversion */}
+          {availableUsdc > 0 && (
+            <section className="rounded-2xl border-2 border-blue-300 p-5 bg-gradient-to-r from-blue-50 to-blue-100">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-8 h-8 rounded-full bg-blue-200 flex items-center justify-center">
+                  <span className="text-blue-700 font-bold">💱</span>
+                </div>
+                <h3 className="text-lg font-semibold text-blue-800">Convert USDC to WLD</h3>
+              </div>
+              <p className="text-sm text-blue-700 mb-4">
+                You have <span className="font-bold">{availableUsdc.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDC</span> which can be converted to WLD to use in apps using UNO!
+              </p>
+              <button
+                type="button"
+                onClick={openUno}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 text-white px-4 py-3 text-sm font-semibold shadow-sm hover:bg-blue-700 transition-all duration-200 transform hover:scale-105"
+              >
+                💱 Swap with UNO
+              </button>
+            </section>
+          )}
+
+          {/* Add Money */}
+          <section className="rounded-2xl border-2 border-green-300 p-5 bg-gradient-to-r from-green-50 to-green-100">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-8 h-8 rounded-full bg-green-200 flex items-center justify-center">
+                <span className="text-green-700 font-bold">💰</span>
+              </div>
+              <h3 className="text-lg font-semibold text-green-800">Add More WLD</h3>
+            </div>
+            <p className="text-sm text-green-700 mb-4">
+              Add more money to your WLD wallet using Add Money to fund your World App wallet directly from exchanges!
+            </p>
+            <button
+              type="button"
+              onClick={openAddMoney}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-green-600 text-white px-4 py-3 text-sm font-semibold shadow-sm hover:bg-green-700 transition-all duration-200 transform hover:scale-105"
+            >
+              💰 Add Money to Wallet
+            </button>
           </section>
         </>
       )}
