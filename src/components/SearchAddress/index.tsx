@@ -128,7 +128,7 @@ export const SearchAddress = () => {
                 handleSearch(e);
               }
             }}
-            placeholder="Enter EVM address (auto-searches when valid)"
+            placeholder="Enter address to search"
             className="flex-1 border-none bg-transparent text-sm font-medium text-gray-800 placeholder:text-gray-400 focus:outline-none min-w-0"
             spellCheck={false}
             autoCapitalize="none"

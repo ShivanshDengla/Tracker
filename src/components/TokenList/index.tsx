@@ -418,14 +418,14 @@ export const TokenList = () => {
     const looksLikeProtocol = /prize|pool|prz|aave|compound|uniswap|curve|lido|rocket|maker/i.test(token.symbol) || 
                              /Prize|PoolTogether|Aave|Compound|Uniswap|Curve|Lido|Rocket|Maker/i.test(token.name ?? '');
     return hasUsd || looksLikeProtocol;
-  });
+  }).sort((a, b) => (b.usdValueNumber ?? 0) - (a.usdValueNumber ?? 0)); // Sort by USD value descending
     
   const hiddenTokens = groupedTokens.filter(token => {
     const hasUsd = (token.usdValueNumber ?? 0) < HIDE_TOKEN_THRESHOLD;
     const looksLikeProtocol = /prize|pool|prz|aave|compound|uniswap|curve|lido|rocket|maker/i.test(token.symbol) || 
                              /Prize|PoolTogether|Aave|Compound|Uniswap|Curve|Lido|Rocket|Maker/i.test(token.name ?? '');
     return hasUsd && !looksLikeProtocol;
-  });
+  }).sort((a, b) => (b.usdValueNumber ?? 0) - (a.usdValueNumber ?? 0)); // Sort by USD value descending
     
     return { mainTokens, hiddenTokens };
   }, [groupedTokens]);

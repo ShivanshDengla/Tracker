@@ -33,15 +33,12 @@ export function HealthScore() {
   return (
     <div className="space-y-4">
       {/* Suggested Actions Header */}
-      <section className="rounded-2xl border border-zinc-200 dark:border-zinc-800 p-4 sm:p-5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-zinc-900 dark:to-zinc-900">
-        <div className="flex items-center gap-3">
-          <span className="inline-block w-2 h-2 rounded-full bg-blue-600" />
-          <h2 className="text-base font-semibold">Suggested Actions</h2>
-        </div>
-        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+      <div className="px-1">
+        <h2 className="text-xl font-bold text-gray-800 mb-2">Suggested Actions</h2>
+        <p className="text-sm text-gray-600">
           Optimize your portfolio with these recommended actions
         </p>
-      </section>
+      </div>
 
       {tokens.length === 0 && !loading && (
         <p className="text-sm text-zinc-600 dark:text-zinc-400">Connect a wallet on the Tracker tab to see suggestions.</p>
@@ -55,8 +52,12 @@ export function HealthScore() {
           {availableWld > 0 && (
             <section className="rounded-2xl border-2 border-purple-300 p-4 sm:p-5 bg-gradient-to-r from-purple-50 to-purple-100">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-8 h-8 rounded-full bg-purple-200 flex items-center justify-center flex-shrink-0">
-                  <span className="text-purple-700 font-bold">🎯</span>
+                <div className="w-8 h-8 rounded-full bg-purple-200 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  <img 
+                    src="https://app.cabana.fi/icons/przPOOL.svg" 
+                    alt="POOL" 
+                    className="w-6 h-6 object-cover"
+                  />
                 </div>
                 <h3 className="text-lg font-semibold text-purple-800">PoolTogether Deposit</h3>
               </div>
@@ -66,7 +67,7 @@ export function HealthScore() {
               <button
                 type="button"
                 onClick={openPoolTogether}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-purple-600 text-white px-4 py-3 text-sm font-semibold shadow-sm hover:bg-purple-700 transition-all duration-200 transform hover:scale-105"
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-purple-600 text-white px-6 py-4 text-base font-semibold shadow-lg hover:bg-purple-700 transition-all duration-200 transform hover:scale-105 border-2 border-purple-700"
               >
                 🎯 Deposit WLD in PoolTogether
               </button>
@@ -77,8 +78,12 @@ export function HealthScore() {
           {availableUsdc > 0 && (
             <section className="rounded-2xl border-2 border-blue-300 p-4 sm:p-5 bg-gradient-to-r from-blue-50 to-blue-100">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-8 h-8 rounded-full bg-blue-200 flex items-center justify-center flex-shrink-0">
-                  <span className="text-blue-700 font-bold">💱</span>
+                <div className="w-8 h-8 rounded-full bg-blue-200 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  <img 
+                    src="/uno.png" 
+                    alt="UNO" 
+                    className="w-6 h-6 object-cover"
+                  />
                 </div>
                 <h3 className="text-lg font-semibold text-blue-800">Convert USDC to WLD</h3>
               </div>
@@ -88,7 +93,7 @@ export function HealthScore() {
               <button
                 type="button"
                 onClick={openUno}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 text-white px-4 py-3 text-sm font-semibold shadow-sm hover:bg-blue-700 transition-all duration-200 transform hover:scale-105"
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 text-white px-6 py-4 text-base font-semibold shadow-lg hover:bg-blue-700 transition-all duration-200 transform hover:scale-105 border-2 border-blue-700"
               >
                 💱 Swap with UNO
               </button>
@@ -98,8 +103,12 @@ export function HealthScore() {
           {/* Add Money */}
           <section className="rounded-2xl border-2 border-green-300 p-4 sm:p-5 bg-gradient-to-r from-green-50 to-green-100">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-8 h-8 rounded-full bg-green-200 flex items-center justify-center flex-shrink-0">
-                <span className="text-green-700 font-bold">💰</span>
+              <div className="w-8 h-8 rounded-full bg-green-200 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                <img 
+                  src="/add-money.png" 
+                  alt="Add Money" 
+                  className="w-6 h-6 object-cover"
+                />
               </div>
               <h3 className="text-lg font-semibold text-green-800">Add More WLD</h3>
             </div>
@@ -109,7 +118,7 @@ export function HealthScore() {
             <button
               type="button"
               onClick={openAddMoney}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-green-600 text-white px-4 py-3 text-sm font-semibold shadow-sm hover:bg-green-700 transition-all duration-200 transform hover:scale-105"
+              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-green-600 text-white px-6 py-4 text-base font-semibold shadow-lg hover:bg-green-700 transition-all duration-200 transform hover:scale-105 border-2 border-green-700"
             >
               💰 Add Money to Wallet
             </button>
