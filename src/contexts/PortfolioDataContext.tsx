@@ -379,6 +379,39 @@ export function PortfolioDataProvider({ children }: { children: React.ReactNode 
             } catch {}
           }
 
+          // Derive prices for PoolTogether tokens based on underlying assets
+          for (const token of result) {
+            if (!token.usd && token.symbol) {
+              const symbol = token.symbol.toUpperCase();
+              let underlyingPrice: number | undefined;
+              
+              // Map PoolTogether tokens to their underlying assets
+              if (symbol.includes('PRZUSDC') || symbol.includes('PUSDC') || symbol.includes('USDC')) {
+                underlyingPrice = await getGlobalPrice('USDC', alchemy);
+              } else if (symbol.includes('PRZWETH') || symbol.includes('PWETH') || symbol.includes('WETH')) {
+                underlyingPrice = await getGlobalPrice('WETH', alchemy);
+              } else if (symbol.includes('PRZDAI') || symbol.includes('PDAI') || symbol.includes('DAI')) {
+                underlyingPrice = await getGlobalPrice('DAI', alchemy);
+              } else if (symbol.includes('PRZUSDT') || symbol.includes('USDT')) {
+                underlyingPrice = await getGlobalPrice('USDT', alchemy);
+              } else if (symbol.includes('PRZSTETH') || symbol.includes('PRZWSTETH') || symbol.includes('STETH')) {
+                underlyingPrice = await getGlobalPrice('STETH', alchemy);
+              } else if (symbol.includes('PRZCBETH') || symbol.includes('CBETH')) {
+                underlyingPrice = await getGlobalPrice('CBETH', alchemy);
+              } else if (symbol.includes('PRZAERO') || symbol.includes('AERO')) {
+                underlyingPrice = await getGlobalPrice('AERO', alchemy);
+              } else if (symbol.includes('PRZPOOL') || symbol.includes('POOL')) {
+                underlyingPrice = await getGlobalPrice('POOL', alchemy);
+              } else if (symbol.includes('PRZWXDAI') || symbol.includes('WXDAI')) {
+                underlyingPrice = await getGlobalPrice('DAI', alchemy); // WXDAI is typically pegged to DAI
+              }
+              
+              if (underlyingPrice !== undefined) {
+                token.usd = underlyingPrice * token.amount;
+              }
+            }
+          }
+
           return result;
         } catch {
           return [] as SimpleToken[];

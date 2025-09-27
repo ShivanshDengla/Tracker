@@ -33,7 +33,7 @@ export function HealthScore() {
   return (
     <div className="space-y-4">
       {/* Suggested Actions Header */}
-      <section className="rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-zinc-900 dark:to-zinc-900">
+      <section className="rounded-2xl border border-zinc-200 dark:border-zinc-800 p-4 sm:p-5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-zinc-900 dark:to-zinc-900">
         <div className="flex items-center gap-3">
           <span className="inline-block w-2 h-2 rounded-full bg-blue-600" />
           <h2 className="text-base font-semibold">Suggested Actions</h2>
@@ -53,9 +53,9 @@ export function HealthScore() {
         <>
           {/* PoolTogether WLD Deposit */}
           {availableWld > 0 && (
-            <section className="rounded-2xl border-2 border-purple-300 p-5 bg-gradient-to-r from-purple-50 to-purple-100">
+            <section className="rounded-2xl border-2 border-purple-300 p-4 sm:p-5 bg-gradient-to-r from-purple-50 to-purple-100">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-8 h-8 rounded-full bg-purple-200 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full bg-purple-200 flex items-center justify-center flex-shrink-0">
                   <span className="text-purple-700 font-bold">🎯</span>
                 </div>
                 <h3 className="text-lg font-semibold text-purple-800">PoolTogether Deposit</h3>
@@ -75,9 +75,9 @@ export function HealthScore() {
 
           {/* UNO USDC to WLD Conversion */}
           {availableUsdc > 0 && (
-            <section className="rounded-2xl border-2 border-blue-300 p-5 bg-gradient-to-r from-blue-50 to-blue-100">
+            <section className="rounded-2xl border-2 border-blue-300 p-4 sm:p-5 bg-gradient-to-r from-blue-50 to-blue-100">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-8 h-8 rounded-full bg-blue-200 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full bg-blue-200 flex items-center justify-center flex-shrink-0">
                   <span className="text-blue-700 font-bold">💱</span>
                 </div>
                 <h3 className="text-lg font-semibold text-blue-800">Convert USDC to WLD</h3>
@@ -96,9 +96,9 @@ export function HealthScore() {
           )}
 
           {/* Add Money */}
-          <section className="rounded-2xl border-2 border-green-300 p-5 bg-gradient-to-r from-green-50 to-green-100">
+          <section className="rounded-2xl border-2 border-green-300 p-4 sm:p-5 bg-gradient-to-r from-green-50 to-green-100">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-8 h-8 rounded-full bg-green-200 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full bg-green-200 flex items-center justify-center flex-shrink-0">
                 <span className="text-green-700 font-bold">💰</span>
               </div>
               <h3 className="text-lg font-semibold text-green-800">Add More WLD</h3>

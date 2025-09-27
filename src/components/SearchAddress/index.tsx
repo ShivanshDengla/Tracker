@@ -127,9 +127,9 @@ export const SearchAddress = () => {
         <label htmlFor="address" className="block text-xs font-semibold text-gray-600 mb-2">
           Wallet address
         </label>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="flex flex-1 items-center gap-3 rounded-xl border border-blue-500 bg-white px-3 py-2 focus-within:border-blue-600 transition-all">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-3 rounded-xl border border-blue-500 bg-white px-3 py-2 focus-within:border-blue-600 transition-all">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-blue-600 flex-shrink-0">
               <Wallet width={20} height={20} />
             </div>
             <input
@@ -138,7 +138,7 @@ export const SearchAddress = () => {
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value.replace(/\s/g, ''))}
               placeholder="Enter or paste any EVM address"
-              className="flex-1 border-none bg-transparent text-sm font-medium text-gray-800 placeholder:text-gray-400 focus:outline-none"
+              className="flex-1 border-none bg-transparent text-sm font-medium text-gray-800 placeholder:text-gray-400 focus:outline-none min-w-0"
               spellCheck={false}
               autoCapitalize="none"
               autoCorrect="off"
@@ -149,7 +149,7 @@ export const SearchAddress = () => {
               <button
                 type="button"
                 onClick={handleClear}
-                className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100 transition-colors shadow-sm"
+                className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100 transition-colors shadow-sm flex-1 sm:flex-none"
               >
                 Clear
               </button>
@@ -157,7 +157,7 @@ export const SearchAddress = () => {
               <button
                 type="button"
                 onClick={handlePaste}
-                className="rounded-lg bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors shadow-sm"
+                className="rounded-lg bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors shadow-sm flex-1 sm:flex-none"
               >
                 Paste
               </button>
@@ -167,14 +167,14 @@ export const SearchAddress = () => {
                 type="button"
                 onClick={handleCopy}
                 title="Copy address"
-                className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:border-blue-200 hover:text-blue-500 transition-colors"
+                className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:border-blue-200 hover:text-blue-500 transition-colors flex-shrink-0"
               >
                 <Copy width={18} height={18} />
               </button>
             )}
             <button
               type="submit"
-              className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 shadow-sm disabled:cursor-not-allowed disabled:bg-blue-200"
+              className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 shadow-sm disabled:cursor-not-allowed disabled:bg-blue-200 flex-1 sm:flex-none"
               disabled={!isValidAddress}
             >
               Search
