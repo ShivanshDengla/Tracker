@@ -412,18 +412,22 @@ export const TokenList = () => {
   const categorizedTokens = useMemo(() => {
     if (!groupedTokens) return { mainTokens: [], hiddenTokens: [] } as { mainTokens: PortfolioToken[]; hiddenTokens: PortfolioToken[] };
     
-    // Main tokens: only tokens with USD value >= $0.5, regardless of protocol category
+    // Main tokens: only tokens with USD value >= $0.5, excluding Curve tokens
     const mainTokens = groupedTokens.filter(token => {
-      return (token.usdValueNumber ?? 0) >= HIDE_TOKEN_THRESHOLD;
+      const hasUsd = (token.usdValueNumber ?? 0) >= HIDE_TOKEN_THRESHOLD;
+      const isCurve = /curve/i.test(token.symbol) || /Curve/i.test(token.name ?? '') || token.symbol === 'Curve';
+      return hasUsd && !isCurve;
     }).sort((a, b) => (b.usdValueNumber ?? 0) - (a.usdValueNumber ?? 0)); // Sort by USD value descending
     
-    // Hidden tokens: all tokens with USD value < $0.5, regardless of protocol category
+    // Hidden tokens: all tokens with USD value < $0.5 OR Curve tokens (regardless of value)
     const hiddenTokens = groupedTokens.filter(token => {
-      return (token.usdValueNumber ?? 0) < HIDE_TOKEN_THRESHOLD;
+      const hasLowUsd = (token.usdValueNumber ?? 0) < HIDE_TOKEN_THRESHOLD;
+      const isCurve = /curve/i.test(token.symbol) || /Curve/i.test(token.name ?? '') || token.symbol === 'Curve';
+      return hasLowUsd || isCurve;
     }).sort((a, b) => {
       // Check if tokens are Curve tokens
-      const aIsCurve = /curve/i.test(a.symbol) || /Curve/i.test(a.name ?? '');
-      const bIsCurve = /curve/i.test(b.symbol) || /Curve/i.test(b.name ?? '');
+      const aIsCurve = /curve/i.test(a.symbol) || /Curve/i.test(a.name ?? '') || a.symbol === 'Curve';
+      const bIsCurve = /curve/i.test(b.symbol) || /Curve/i.test(b.name ?? '') || b.symbol === 'Curve';
       
       // Curve tokens go to the very end
       if (aIsCurve && !bIsCurve) return 1;

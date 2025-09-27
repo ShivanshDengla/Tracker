@@ -176,6 +176,13 @@ export function PortfolioDataProvider({ children }: { children: React.ReactNode 
   const balanceCache = useRef<Map<string, BalanceCache>>(new Map());
   
   const alchemyNetworks = useMemo(parseNetworks, []);
+  
+  // Reuse Alchemy instances to avoid recreating them
+  const alchemyInstances = useMemo(() => {
+    const apiKey = process.env.NEXT_PUBLIC_ALCHEMY_API_KEY;
+    if (!apiKey) return [];
+    return alchemyNetworks.map(cfg => ({ cfg, alchemy: new Alchemy({ apiKey, network: cfg.network }) }));
+  }, [alchemyNetworks]);
 
   // Cache management functions
   const getCachedPrice = useCallback((key: string): number | null => {
@@ -214,26 +221,43 @@ export function PortfolioDataProvider({ children }: { children: React.ReactNode 
     balanceCache.current.set(cacheKey, { nativeBalance, tokenBalances, timestamp: Date.now() });
   }, []);
 
-  // Global price fetcher with caching
-  const getGlobalPrice = useCallback(async (symbol: string, alchemy: Alchemy): Promise<number | undefined> => {
-    const cacheKey = `global-${symbol}`;
-    const cached = getCachedPrice(cacheKey);
-    if (cached !== null) {
-      return cached;
-    }
-
-    try {
-      const symbolPrices = await alchemy.prices.getTokenPriceBySymbol([symbol]);
-      const priceEntry = symbolPrices?.data?.[0]?.prices?.[0];
-      if (priceEntry?.value) {
-        const price = Number(priceEntry.value);
-        setCachedPrice(cacheKey, price);
-        return price;
+  // Batch global price fetcher for multiple symbols
+  const getGlobalPrices = useCallback(async (symbols: string[], alchemy: Alchemy): Promise<Map<string, number>> => {
+    const results = new Map<string, number>();
+    const uncachedSymbols: string[] = [];
+    
+    // Check cache first
+    for (const symbol of symbols) {
+      const cacheKey = `global-${symbol}`;
+      const cached = getCachedPrice(cacheKey);
+      if (cached !== null) {
+        results.set(symbol, cached);
+      } else {
+        uncachedSymbols.push(symbol);
       }
-    } catch (error) {
-      console.warn(`Failed to fetch global price for ${symbol}`, error);
     }
-    return undefined;
+    
+    // Fetch uncached symbols in batch
+    if (uncachedSymbols.length > 0) {
+      try {
+        const symbolPrices = await alchemy.prices.getTokenPriceBySymbol(uncachedSymbols);
+        symbolPrices?.data?.forEach((entry) => {
+          const priceEntry = entry.prices?.[0];
+          if (priceEntry?.value) {
+            const price = Number(priceEntry.value);
+            const symbol = entry.symbol;
+            if (symbol) {
+              results.set(symbol, price);
+              setCachedPrice(`global-${symbol}`, price);
+            }
+          }
+        });
+      } catch (error) {
+        console.warn(`Failed to fetch global prices for ${uncachedSymbols.join(', ')}`, error);
+      }
+    }
+    
+    return results;
   }, [getCachedPrice, setCachedPrice]);
 
   // Convert SimpleToken to PortfolioToken
@@ -266,10 +290,12 @@ export function PortfolioDataProvider({ children }: { children: React.ReactNode 
     setError(null);
 
     try {
-      const instances = alchemyNetworks.map(cfg => ({ cfg, alchemy: new Alchemy({ apiKey, network: cfg.network }) }));
-      const globalEth = await getGlobalPrice('ETH', instances[0].alchemy);
+      // Pre-fetch common global prices in batch
+      const commonSymbols = ['ETH', 'WLD', 'USDC', 'USDT', 'DAI', 'WETH', 'STETH', 'CBETH', 'AERO', 'POOL'];
+      const globalPrices = await getGlobalPrices(commonSymbols, alchemyInstances[0]?.alchemy);
+      const globalEth = globalPrices.get('ETH');
 
-      const perNetwork = await Promise.all(instances.map(async ({ cfg, alchemy }) => {
+      const perNetwork = await Promise.all(alchemyInstances.map(async ({ cfg, alchemy }) => {
         try {
           const balanceCacheKey = `${walletAddress}-${cfg.network}`;
           let nativeBal: bigint;
@@ -379,51 +405,51 @@ export function PortfolioDataProvider({ children }: { children: React.ReactNode 
             } catch {}
           }
 
-          // Derive prices for PoolTogether tokens based on underlying assets
+          // Derive prices for PoolTogether tokens based on underlying assets using pre-fetched prices
           for (const token of result) {
             if (!token.usd && token.symbol) {
               const symbol = token.symbol.toUpperCase();
               let underlyingPrice: number | undefined;
               
-              // Map PoolTogether tokens to their underlying assets
+              // Map PoolTogether tokens to their underlying assets using pre-fetched prices
               if (symbol.includes('PRZWLD') || symbol.includes('PWLD')) {
-                underlyingPrice = await getGlobalPrice('WLD', alchemy);
+                underlyingPrice = globalPrices.get('WLD');
               } else if (symbol.includes('PRZPOOL') || symbol.includes('PPOOL')) {
-                underlyingPrice = await getGlobalPrice('POOL', alchemy);
+                underlyingPrice = globalPrices.get('POOL');
               } else if (symbol.includes('PRZUSDC') || symbol.includes('PUSDC')) {
-                underlyingPrice = await getGlobalPrice('USDC', alchemy);
+                underlyingPrice = globalPrices.get('USDC');
               } else if (symbol.includes('PRZWETH') || symbol.includes('PWETH')) {
-                underlyingPrice = await getGlobalPrice('WETH', alchemy);
+                underlyingPrice = globalPrices.get('WETH');
               } else if (symbol.includes('PRZDAI') || symbol.includes('PDAI')) {
-                underlyingPrice = await getGlobalPrice('DAI', alchemy);
+                underlyingPrice = globalPrices.get('DAI');
               } else if (symbol.includes('PRZUSDT')) {
-                underlyingPrice = await getGlobalPrice('USDT', alchemy);
+                underlyingPrice = globalPrices.get('USDT');
               } else if (symbol.includes('PRZSTETH') || symbol.includes('PRZWSTETH')) {
-                underlyingPrice = await getGlobalPrice('STETH', alchemy);
+                underlyingPrice = globalPrices.get('STETH');
               } else if (symbol.includes('PRZCBETH')) {
-                underlyingPrice = await getGlobalPrice('CBETH', alchemy);
+                underlyingPrice = globalPrices.get('CBETH');
               } else if (symbol.includes('PRZAERO')) {
-                underlyingPrice = await getGlobalPrice('AERO', alchemy);
+                underlyingPrice = globalPrices.get('AERO');
               } else if (symbol.includes('PRZWXDAI')) {
-                underlyingPrice = await getGlobalPrice('DAI', alchemy); // WXDAI is typically pegged to DAI
+                underlyingPrice = globalPrices.get('DAI'); // WXDAI is typically pegged to DAI
               } else if (symbol.includes('USDC')) {
-                underlyingPrice = await getGlobalPrice('USDC', alchemy);
+                underlyingPrice = globalPrices.get('USDC');
               } else if (symbol.includes('WETH')) {
-                underlyingPrice = await getGlobalPrice('WETH', alchemy);
+                underlyingPrice = globalPrices.get('WETH');
               } else if (symbol.includes('DAI')) {
-                underlyingPrice = await getGlobalPrice('DAI', alchemy);
+                underlyingPrice = globalPrices.get('DAI');
               } else if (symbol.includes('USDT')) {
-                underlyingPrice = await getGlobalPrice('USDT', alchemy);
+                underlyingPrice = globalPrices.get('USDT');
               } else if (symbol.includes('STETH')) {
-                underlyingPrice = await getGlobalPrice('STETH', alchemy);
+                underlyingPrice = globalPrices.get('STETH');
               } else if (symbol.includes('CBETH')) {
-                underlyingPrice = await getGlobalPrice('CBETH', alchemy);
+                underlyingPrice = globalPrices.get('CBETH');
               } else if (symbol.includes('AERO')) {
-                underlyingPrice = await getGlobalPrice('AERO', alchemy);
+                underlyingPrice = globalPrices.get('AERO');
               } else if (symbol.includes('POOL')) {
-                underlyingPrice = await getGlobalPrice('POOL', alchemy);
+                underlyingPrice = globalPrices.get('POOL');
               } else if (symbol.includes('WLD')) {
-                underlyingPrice = await getGlobalPrice('WLD', alchemy);
+                underlyingPrice = globalPrices.get('WLD');
               }
               
               if (underlyingPrice !== undefined) {
@@ -446,7 +472,7 @@ export function PortfolioDataProvider({ children }: { children: React.ReactNode 
     } finally {
       setLoading(false);
     }
-  }, [walletAddress, alchemyNetworks, getGlobalPrice, getCachedBalance, setCachedBalance, getCachedMetadata, setCachedMetadata, convertToPortfolioToken]);
+  }, [walletAddress, alchemyInstances, getGlobalPrices, getCachedBalance, setCachedBalance, getCachedMetadata, setCachedMetadata, convertToPortfolioToken]);
 
   // Refetch function
   const refetch = useCallback(() => {
