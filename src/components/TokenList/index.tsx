@@ -412,20 +412,15 @@ export const TokenList = () => {
   const categorizedTokens = useMemo(() => {
     if (!groupedTokens) return { mainTokens: [], hiddenTokens: [] } as { mainTokens: PortfolioToken[]; hiddenTokens: PortfolioToken[] };
     
-  // Show tokens with price OR tokens explicitly recognized (e.g., protocol tokens) in main list
-  const mainTokens = groupedTokens.filter(token => {
-    const hasUsd = (token.usdValueNumber ?? 0) >= HIDE_TOKEN_THRESHOLD;
-    const looksLikeProtocol = /prize|pool|prz|aave|compound|uniswap|curve|lido|rocket|maker/i.test(token.symbol) || 
-                             /Prize|PoolTogether|Aave|Compound|Uniswap|Curve|Lido|Rocket|Maker/i.test(token.name ?? '');
-    return hasUsd || looksLikeProtocol;
-  }).sort((a, b) => (b.usdValueNumber ?? 0) - (a.usdValueNumber ?? 0)); // Sort by USD value descending
+    // Main tokens: only tokens with USD value >= $0.5, regardless of protocol category
+    const mainTokens = groupedTokens.filter(token => {
+      return (token.usdValueNumber ?? 0) >= HIDE_TOKEN_THRESHOLD;
+    }).sort((a, b) => (b.usdValueNumber ?? 0) - (a.usdValueNumber ?? 0)); // Sort by USD value descending
     
-  const hiddenTokens = groupedTokens.filter(token => {
-    const hasUsd = (token.usdValueNumber ?? 0) < HIDE_TOKEN_THRESHOLD;
-    const looksLikeProtocol = /prize|pool|prz|aave|compound|uniswap|curve|lido|rocket|maker/i.test(token.symbol) || 
-                             /Prize|PoolTogether|Aave|Compound|Uniswap|Curve|Lido|Rocket|Maker/i.test(token.name ?? '');
-    return hasUsd && !looksLikeProtocol;
-  }).sort((a, b) => (b.usdValueNumber ?? 0) - (a.usdValueNumber ?? 0)); // Sort by USD value descending
+    // Hidden tokens: all tokens with USD value < $0.5, regardless of protocol category
+    const hiddenTokens = groupedTokens.filter(token => {
+      return (token.usdValueNumber ?? 0) < HIDE_TOKEN_THRESHOLD;
+    }).sort((a, b) => (b.usdValueNumber ?? 0) - (a.usdValueNumber ?? 0)); // Sort by USD value descending
     
     return { mainTokens, hiddenTokens };
   }, [groupedTokens]);
