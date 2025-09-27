@@ -27,6 +27,7 @@ export const SearchAddress = () => {
   const [searchValue, setSearchValue] = useState(initialAddress);
   const [copied, setCopied] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
   // removed isEditing mode; keep input simple and always editable
 
   const debouncedValue = useDebounce(searchValue, 400);
@@ -93,6 +94,7 @@ export const SearchAddress = () => {
     const next = new URLSearchParams(params.toString());
     next.set('address', addr);
     router.push(`?${next.toString()}`);
+    setShowHistory(false);
   };
 
   const handleDeleteHistory = (addr: string) => {
@@ -114,11 +116,14 @@ export const SearchAddress = () => {
     }
   };
 
-  // no masked display; show full value to avoid confusion
+  const shorten = (addr: string, n = 4) => {
+    if (!addr) return '';
+    return `${addr.slice(0, n + 2)}…${addr.slice(-n)}`;
+  };
 
   return (
     <div className="w-full">
-      <form onSubmit={handleSearch} className="bg-white border border-gray-200 shadow-sm rounded-2xl p-4">
+      <form onSubmit={handleSearch} className="bg-white border border-gray-200 shadow-sm rounded-2xl p-4" onFocus={() => setShowHistory(true)} onBlur={() => setTimeout(() => setShowHistory(false), 120)}>
         <label htmlFor="address" className="block text-xs font-semibold text-gray-600 mb-2">
           Wallet address
         </label>
@@ -144,7 +149,7 @@ export const SearchAddress = () => {
               <button
                 type="button"
                 onClick={handleClear}
-                className="rounded-lg bg-red-100 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-200 transition-colors shadow-sm"
+                className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100 transition-colors shadow-sm"
               >
                 Clear
               </button>
@@ -152,7 +157,7 @@ export const SearchAddress = () => {
               <button
                 type="button"
                 onClick={handlePaste}
-                className="rounded-lg bg-blue-100 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-200 transition-colors shadow-sm"
+                className="rounded-lg bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors shadow-sm"
               >
                 Paste
               </button>
@@ -184,7 +189,7 @@ export const SearchAddress = () => {
           ) : null}
         </div>
       </form>
-      {history.length > 0 && (
+      {showHistory && history.length > 0 && (
         <div className="mt-3 bg-white border border-gray-200 rounded-xl overflow-hidden">
           <div className="px-4 py-2 text-xs font-semibold text-gray-600 bg-gray-50 border-b border-gray-200">
             Recent addresses
@@ -194,16 +199,16 @@ export const SearchAddress = () => {
               <li key={addr} className="flex items-center justify-between px-4 py-2 hover:bg-gray-50">
                 <button
                   type="button"
-                  className="text-xs font-mono text-blue-700 truncate text-left mr-2"
+                  className="text-xs font-mono text-blue-700 text-left mr-2"
                   onClick={() => handlePickHistory(addr)}
                   title={addr}
                 >
-                  {addr}
+                  {shorten(addr)}
                 </button>
                 <button
                   type="button"
                   onClick={() => handleDeleteHistory(addr)}
-                  className="text-xs text-red-600 hover:underline"
+                  className="text-xs text-red-600 hover:underline bg-red-50 px-2 py-1 rounded"
                 >
                   Delete
                 </button>

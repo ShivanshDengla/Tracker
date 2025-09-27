@@ -235,9 +235,9 @@ export function HealthScore() {
   return (
     <div className="space-y-4">
       {/* Hero Score Card */}
-      <section className="rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-zinc-900 dark:to-zinc-900">
+      <section className="rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 bg-gradient-to-r from-emerald-50 to-green-50 dark:from-zinc-900 dark:to-zinc-900">
         <div className="flex items-center gap-3">
-          <span className="inline-block w-2 h-2 rounded-full bg-blue-600" />
+          <span className="inline-block w-2 h-2 rounded-full bg-emerald-600" />
           <h2 className="text-base font-semibold">Portfolio Health</h2>
         </div>
         {summary ? (
@@ -257,7 +257,7 @@ export function HealthScore() {
         {/* Address row */}
         <div className="mt-4 flex items-center justify-between rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
               {/* wallet icon substitute */}
               <span className="text-xs font-bold">0x</span>
             </div>
@@ -279,7 +279,7 @@ export function HealthScore() {
             </button>
             <Link
               href={walletAddress ? `/home?address=${walletAddress}` : '/home'}
-              className="text-xs px-2 py-1 rounded-md bg-blue-600 text-white hover:bg-blue-700"
+              className="text-xs px-2 py-1 rounded-md bg-emerald-600 text-white hover:bg-emerald-700"
             >
               Edit
             </Link>
@@ -297,23 +297,23 @@ export function HealthScore() {
         <>
           {/* Metrics grid */}
           <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-3 bg-white dark:bg-zinc-950">
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-3 bg-gradient-to-br from-emerald-50 to-green-50 dark:bg-zinc-950">
               <div className="text-xs text-zinc-500">Top concentration</div>
               <div className="mt-1 text-lg font-bold">{Math.round(summary.topShare * 100)}% {summary.topSymbol?.[0] ? `(${summary.topSymbol[0]})` : ''}</div>
             </div>
-            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-3 bg-white dark:bg-zinc-950">
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-3 bg-gradient-to-br from-emerald-50 to-green-50 dark:bg-zinc-950">
               <div className="text-xs text-zinc-500">Stable allocation</div>
               <div className="mt-1 text-lg font-bold">{Math.round(summary.stableShare * 100)}%</div>
             </div>
-            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-3 bg-white dark:bg-zinc-950">
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-3 bg-gradient-to-br from-emerald-50 to-green-50 dark:bg-zinc-950">
               <div className="text-xs text-zinc-500">Chains used</div>
               <div className="mt-1 text-lg font-bold">{summary.chains.length}</div>
             </div>
           </div>
 
           {/* Suggestions */}
-          <section className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 bg-white dark:bg-zinc-950">
-            <h3 className="text-sm font-semibold mb-1">Suggestions</h3>
+          <section className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 bg-gradient-to-br from-emerald-50 to-green-50 dark:bg-zinc-950">
+            <h3 className="text-sm font-semibold mb-1 text-emerald-800">Suggestions</h3>
             <ul className="list-disc pl-5 space-y-1 text-sm text-zinc-700 dark:text-zinc-300">
               {summary.topShare > 0.5 && <li>Reduce reliance on your top asset by swapping a portion into stables.</li>}
               {summary.stableShare < 0.15 && <li>Increase stablecoin buffer for volatility protection (10–30%).</li>}
@@ -325,9 +325,9 @@ export function HealthScore() {
           </section>
 
           {/* Explainer */}
-          <section className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 bg-white dark:bg-zinc-950">
+          <section className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 bg-gradient-to-br from-emerald-50 to-green-50 dark:bg-zinc-950">
             <details>
-              <summary className="cursor-pointer text-sm font-semibold">How it’s calculated</summary>
+              <summary className="cursor-pointer text-sm font-semibold text-emerald-800">How it&apos;s calculated</summary>
               <div className="mt-2 text-xs text-zinc-600 dark:text-zinc-400 space-y-1">
                 <p>We compute a score out of 100 based on:</p>
                 <ul className="list-disc pl-5 space-y-1">

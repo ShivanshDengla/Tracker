@@ -48,7 +48,7 @@ export const SelectedWallet = () => {
       <button
         type="button"
         onClick={handleMyWallet}
-        className="text-xs px-2 py-1 rounded-md border border-zinc-200 text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+        className="text-xs px-2 py-1 rounded-md border border-zinc-200 text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 bg-blue-50"
         disabled={isMyWallet}
         title={isMyWallet ? 'Already showing your wallet' : 'Switch to my wallet'}
       >

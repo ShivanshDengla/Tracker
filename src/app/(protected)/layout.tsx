@@ -18,8 +18,8 @@ export default async function TabsLayout({
   return (
     <Page>
       <div
-        className="pb-24"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 88px)' }}
+        className="pb-28"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 96px)' }}
       >
         {children}
       </div>

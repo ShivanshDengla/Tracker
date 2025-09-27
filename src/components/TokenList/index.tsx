@@ -725,6 +725,24 @@ export const TokenList = () => {
   // Show partial results while loading
   const displayTokens = tokens || partialResults;
 
+  // Compute available WLD across networks
+  const availableWld = useMemo(() => {
+    const currentTokens = displayTokens;
+    if (!currentTokens) return 0;
+    return currentTokens
+      .filter((t) => (t.symbol || '').toUpperCase() === 'WLD')
+      .reduce((sum, t) => sum + (t.amountNumber || 0), 0);
+  }, [displayTokens]);
+
+  const openPoolTogether = useCallback(() => {
+    // Universal deeplink to PoolTogether mini app. If World App is installed, it opens in-app.
+    const appId = 'app_85f4c411dc00aadabc96cce7b3a77219';
+    const url = `https://world.org/mini-app?app_id=${encodeURIComponent(appId)}`;
+    if (typeof window !== 'undefined') {
+      window.location.href = url;
+    }
+  }, []);
+
   // Extract PoolTogether/prize tokens for optional expansion rendering
   const poolTokensList = useMemo(() => {
     if (!displayTokens) return [] as PortfolioToken[];
@@ -794,7 +812,7 @@ export const TokenList = () => {
 
   return (
     <div className="w-full space-y-4">
-      <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl p-6 text-white">
+      <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl p-6 text-white">
         <h2 className="text-lg font-semibold mb-2">Portfolio Value</h2>
         <p className="text-3xl font-bold">${formattedTotal}</p>
         <p className="text-sm opacity-90 mt-1">
@@ -809,6 +827,20 @@ export const TokenList = () => {
           <p className="text-xs opacity-75 mt-1">
             Loading... {processedNetworks.size}/{alchemyNetworks.length} networks processed
           </p>
+        )}
+
+        {/* PoolTogether quick action CTA when WLD is available */}
+        {availableWld > 0 && (
+          <div className="mt-3">
+            <button
+              type="button"
+              onClick={openPoolTogether}
+              className="inline-flex items-center gap-2 rounded-lg bg-white/95 text-blue-700 px-3 py-2 text-xs font-semibold shadow-sm hover:bg-white"
+            >
+              Deposit WLD in PoolTogether
+              <span className="text-[10px] font-normal opacity-70">{availableWld.toLocaleString(undefined, { maximumFractionDigits: 4 })} WLD</span>
+            </button>
+          </div>
         )}
       </div>
 
