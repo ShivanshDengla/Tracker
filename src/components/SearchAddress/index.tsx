@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Wallet } from 'iconoir-react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { usePortfolioData } from '@/contexts/PortfolioDataContext';
 
 const useDebounce = <T,>(value: T, delay: number) => {
   const [debounced, setDebounced] = useState(value);
@@ -27,7 +28,10 @@ export const SearchAddress = () => {
   const [searchValue, setSearchValue] = useState(initialAddress);
   const [history, setHistory] = useState<string[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [isAddressChanging, setIsAddressChanging] = useState(false);
   // removed isEditing mode; keep input simple and always editable
+  
+  const { loading } = usePortfolioData();
 
   const debouncedValue = useDebounce(searchValue, 400);
 
@@ -42,6 +46,13 @@ export const SearchAddress = () => {
 
   useEffect(() => {
     if (!debouncedValue || !isValidAddress) return;
+    
+    // Check if the address is different from current URL address
+    const currentAddress = params.get('address');
+    if (currentAddress !== debouncedValue.trim()) {
+      setIsAddressChanging(true);
+    }
+    
     const next = new URLSearchParams(params.toString());
     next.set('address', debouncedValue);
     router.push(`?${next.toString()}`);
@@ -61,6 +72,13 @@ export const SearchAddress = () => {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (!isValidAddress) return;
+    
+    // Check if the address is different from current URL address
+    const currentAddress = params.get('address');
+    if (currentAddress !== searchValue.trim()) {
+      setIsAddressChanging(true);
+    }
+    
     const next = new URLSearchParams(params.toString());
     next.set('address', searchValue);
     router.push(`?${next.toString()}`);
@@ -75,8 +93,22 @@ export const SearchAddress = () => {
     } catch {}
   }, []);
 
+  // Reset loading state when portfolio data finishes loading
+  useEffect(() => {
+    if (!loading && isAddressChanging) {
+      setIsAddressChanging(false);
+    }
+  }, [loading, isAddressChanging]);
+
   const handlePickHistory = (addr: string) => {
     setSearchValue(addr);
+    
+    // Check if the address is different from current URL address
+    const currentAddress = params.get('address');
+    if (currentAddress !== addr) {
+      setIsAddressChanging(true);
+    }
+    
     // Immediately trigger search without waiting for debounce
     const next = new URLSearchParams(params.toString());
     next.set('address', addr);
@@ -138,6 +170,11 @@ export const SearchAddress = () => {
         <div className="mt-1 min-h-[1rem]">
           {!isValidAddress && searchValue ? (
             <p className="text-xs text-red-500">Enter a valid EVM address.</p>
+          ) : (isAddressChanging && loading) ? (
+            <p className="text-xs text-blue-600 flex items-center gap-1">
+              <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+              Fetching portfolio data...
+            </p>
           ) : null}
         </div>
       </div>

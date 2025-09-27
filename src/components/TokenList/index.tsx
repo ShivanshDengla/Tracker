@@ -420,7 +420,18 @@ export const TokenList = () => {
     // Hidden tokens: all tokens with USD value < $0.5, regardless of protocol category
     const hiddenTokens = groupedTokens.filter(token => {
       return (token.usdValueNumber ?? 0) < HIDE_TOKEN_THRESHOLD;
-    }).sort((a, b) => (b.usdValueNumber ?? 0) - (a.usdValueNumber ?? 0)); // Sort by USD value descending
+    }).sort((a, b) => {
+      // Check if tokens are Curve tokens
+      const aIsCurve = /curve/i.test(a.symbol) || /Curve/i.test(a.name ?? '');
+      const bIsCurve = /curve/i.test(b.symbol) || /Curve/i.test(b.name ?? '');
+      
+      // Curve tokens go to the very end
+      if (aIsCurve && !bIsCurve) return 1;
+      if (!aIsCurve && bIsCurve) return -1;
+      
+      // For non-Curve tokens, sort by USD value descending
+      return (b.usdValueNumber ?? 0) - (a.usdValueNumber ?? 0);
+    });
     
     return { mainTokens, hiddenTokens };
   }, [groupedTokens]);
@@ -747,7 +758,11 @@ export const TokenList = () => {
                         {/* USD Value Column */}
                         <div className="flex items-center">
                           <p className="text-xs text-gray-500">
-                            {token.usdValue ?? '<$0.01'}
+                            {(() => {
+                              const isCurve = /curve/i.test(token.symbol) || /Curve/i.test(token.name ?? '');
+                              if (isCurve) return '$0.00';
+                              return token.usdValue ?? '<$0.01';
+                            })()}
                           </p>
                         </div>
                       </div>
@@ -791,7 +806,11 @@ export const TokenList = () => {
                             </div>
                             <div className="text-right">
                               <p className="text-sm font-medium text-gray-500">
-                                {token.usdValue ?? '<$0.01'}
+                                {(() => {
+                                  const isCurve = /curve/i.test(token.symbol) || /Curve/i.test(token.name ?? '');
+                                  if (isCurve) return '$0.00';
+                                  return token.usdValue ?? '<$0.01';
+                                })()}
                               </p>
                               <p className="text-xs text-gray-400">{token.amount}</p>
                             </div>
