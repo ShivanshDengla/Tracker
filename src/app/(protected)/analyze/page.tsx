@@ -7,7 +7,7 @@ export default function AnalyzePage() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#fefce8' }}>
-      <Page.Header className="p-0">
+      <Page.Header className="p-0 !bg-transparent">
         <div className="px-6 pt-3 pb-2">
           <SelectedWallet />
         </div>

@@ -6,7 +6,7 @@ import { SelectedWallet } from '@/components/UserInfo';
 export default function Home() {
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#f0fdf4' }}>
-      <Page.Header className="p-0">
+      <Page.Header className="p-0 !bg-transparent">
         <div className="px-6 pt-3 pb-2">
           <SelectedWallet />
         </div>
