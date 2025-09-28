@@ -58,40 +58,28 @@ export const SearchAddress = () => {
   }, [initialAddress]);
 
   useEffect(() => {
-    console.log('=== DEBOUNCED EFFECT DEBUG ===');
-    console.log('debouncedValue:', debouncedValue);
-    console.log('isValidAddress:', isValidAddress);
-    console.log('isFromHistory:', isFromHistory);
-    console.log('current URL address:', params.get('address'));
-    
     // Skip if from history selection - those are handled immediately in handlePickHistory
     if (isFromHistory) {
-      console.log('Skipping debounced effect (from history selection)');
       return;
     }
     
     if (!debouncedValue || !isValidAddress) {
-      console.log('Skipping: no debounced value or invalid address');
       return;
     }
     
     // Check if the address is different from current URL address
     const currentAddress = params.get('address');
     if (currentAddress !== debouncedValue.trim()) {
-      console.log('Address changing from', currentAddress, 'to', debouncedValue.trim());
       setIsAddressChanging(true);
     } else {
-      console.log('Address unchanged, skipping navigation');
       return;
     }
     
     const next = new URLSearchParams(params.toString());
     next.set('address', debouncedValue);
-    console.log('Navigating to:', `?${next.toString()}`);
     router.push(`?${next.toString()}`);
     
     // Add to history for manual typing
-    console.log('Adding to history (manual typing)');
     try {
       const key = 'tracker_address_history';
       const current: string[] = JSON.parse(localStorage.getItem(key) || '[]');
@@ -102,7 +90,6 @@ export const SearchAddress = () => {
         setHistory(updated);
       }
     } catch {}
-    console.log('=== END DEBOUNCED EFFECT ===');
   }, [debouncedValue, router, params, isValidAddress, isFromHistory]);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -125,7 +112,6 @@ export const SearchAddress = () => {
   // Reset loading state when portfolio data finishes loading
   useEffect(() => {
     if (!loading && isAddressChanging) {
-      console.log('Portfolio loading finished, resetting states');
       setIsAddressChanging(false);
       setSelectedHistoryAddress(null);
       setIsFromHistory(false);
@@ -133,15 +119,8 @@ export const SearchAddress = () => {
   }, [loading, isAddressChanging]);
 
   const handlePickHistory = (addr: string) => {
-    console.log('=== HISTORY PICK DEBUG ===');
-    console.log('Selected address:', addr);
-    console.log('Current selectedHistoryAddress:', selectedHistoryAddress);
-    console.log('Current URL address:', params.get('address'));
-    console.log('Current loading state:', loading);
-    
     // Prevent multiple rapid clicks
     if (selectedHistoryAddress === addr) {
-      console.log('Preventing duplicate click');
       return;
     }
     
@@ -154,13 +133,11 @@ export const SearchAddress = () => {
     // Check if the address is different from current URL address
     const currentAddress = params.get('address');
     if (currentAddress !== addr) {
-      console.log('Address different, triggering immediate navigation');
       setIsAddressChanging(true);
       
       // Immediately trigger search without waiting for debounce
       const next = new URLSearchParams(params.toString());
       next.set('address', addr);
-      console.log('Navigating to:', `?${next.toString()}`);
       router.push(`?${next.toString()}`);
       
       // Update history immediately
@@ -170,14 +147,10 @@ export const SearchAddress = () => {
         const updated = [addr, ...current.filter(a => a.toLowerCase() !== addr.toLowerCase())].slice(0, 10);
         localStorage.setItem(key, JSON.stringify(updated));
         setHistory(updated);
-        console.log('Updated history:', updated);
       } catch (e) {
-        console.error('Error updating history:', e);
+        // Silent error handling
       }
-    } else {
-      console.log('Address same as current, skipping navigation');
     }
-    console.log('=== END HISTORY PICK ===');
   };
 
   const handleDeleteHistory = (addr: string) => {
