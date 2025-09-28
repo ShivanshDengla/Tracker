@@ -147,7 +147,7 @@ export const SearchAddress = () => {
         const updated = [addr, ...current.filter(a => a.toLowerCase() !== addr.toLowerCase())].slice(0, 10);
         localStorage.setItem(key, JSON.stringify(updated));
         setHistory(updated);
-      } catch (e) {
+      } catch {
         // Silent error handling
       }
     }
