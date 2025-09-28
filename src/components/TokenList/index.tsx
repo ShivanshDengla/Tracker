@@ -418,7 +418,13 @@ export const TokenList = () => {
     for (const [protocolKey, tokens] of Object.entries(protocolGroups)) {
       if (tokens.length > 0) {
         const protocol = protocolPatterns[protocolKey as keyof typeof protocolPatterns];
-        const totalUsd = tokens.reduce((sum, t) => sum + (t.usdValueNumber ?? 0), 0);
+        // Only include legitimate tokens in group total (exclude Curve and scam tokens)
+        const legitimateTokens = tokens.filter(token => {
+          const isCurve = /curve/i.test(token.symbol) || /Curve/i.test(token.name ?? '') || token.symbol === 'Curve';
+          const isScam = isScamToken(token.symbol, token.name ?? '');
+          return !isCurve && !isScam;
+        });
+        const totalUsd = legitimateTokens.reduce((sum, t) => sum + (t.usdValueNumber ?? 0), 0);
 
     const groupToken: PortfolioToken = {
           symbol: protocol.name,
@@ -433,7 +439,10 @@ export const TokenList = () => {
       contractAddress: undefined,
     };
 
-        groupTokens.push(groupToken);
+        // Only add group token if it has legitimate tokens with value
+        if (legitimateTokens.length > 0 && totalUsd > 0) {
+          groupTokens.push(groupToken);
+        }
       }
     }
 
