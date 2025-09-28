@@ -103,6 +103,15 @@ const isScamToken = (symbol: string, name: string): boolean => {
   const upperSymbol = symbol.toUpperCase();
   const upperName = name.toUpperCase();
   
+  // Known suspicious tokens that inflate portfolio values
+  const knownScamTokens = [
+    'ETHG', // Ethereum Games - often has inflated prices
+  ];
+  
+  if (knownScamTokens.includes(upperSymbol)) {
+    return true;
+  }
+  
   // Common scam patterns
   const scamPatterns = [
     // Website/claim patterns
@@ -128,6 +137,10 @@ const isScamToken = (symbol: string, name: string): boolean => {
     
     // Suspicious high-value claims
     /\$[0-9]+[KMB]/i,
+    
+    // Gaming tokens that often have inflated prices
+    /GAME/i,
+    /GAMING/i,
   ];
   
   // Check symbol and name for scam patterns
