@@ -541,10 +541,11 @@ export function PortfolioDataProvider({ children }: { children: React.ReactNode 
   const totalValue = useMemo(() => {
     return tokens
       .filter(t => {
-        // Exclude Curve tokens and scam tokens from total value calculation
+        // Only include tokens that would be visible in the main list
+        const hasUsd = (t.usd ?? 0) >= 0.5; // Same threshold as HIDE_TOKEN_THRESHOLD
         const isCurve = /curve/i.test(t.symbol) || /Curve/i.test(t.name ?? '') || t.symbol === 'Curve';
         const isScam = isScamToken(t.symbol, t.name ?? '');
-        return !isCurve && !isScam;
+        return hasUsd && !isCurve && !isScam;
       })
       .reduce((sum, t) => sum + (t.usd ?? 0), 0);
   }, [tokens]);
