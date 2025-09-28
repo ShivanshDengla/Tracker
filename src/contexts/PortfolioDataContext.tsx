@@ -141,6 +141,12 @@ const isScamToken = (symbol: string, name: string): boolean => {
     // Gaming tokens that often have inflated prices
     /GAME/i,
     /GAMING/i,
+    
+    // Short URL patterns (often used in scams)
+    /t\.ly/i,
+    /t\.me/i,
+    /REDEEM.*t\.ly/i,
+    /CLAIM.*t\.ly/i,
   ];
   
   // Check symbol and name for scam patterns
@@ -475,7 +481,6 @@ export function PortfolioDataProvider({ children }: { children: React.ReactNode 
           for (const token of result) {
             // Set scam tokens to $0
             if (isScamToken(token.symbol, token.name)) {
-              console.log(`Setting scam token ${token.symbol} to $0 (was ${token.usd})`);
               token.usd = 0; // Explicitly set to 0
               continue;
             }
@@ -559,27 +564,15 @@ export function PortfolioDataProvider({ children }: { children: React.ReactNode 
 
   // Computed values
   const totalValue = useMemo(() => {
-    console.log('=== PORTFOLIO TOTAL DEBUG ===');
-    console.log('All tokens:', tokens.map(t => ({ symbol: t.symbol, name: t.name, usd: t.usd, amount: t.amount })));
-    
-    const filteredTokens = tokens.filter(t => {
-      // Only include tokens that would be visible in the main list
-      const hasUsd = (t.usd ?? 0) >= 0.5; // Same threshold as HIDE_TOKEN_THRESHOLD
-      const isCurve = /curve/i.test(t.symbol) || /Curve/i.test(t.name ?? '') || t.symbol === 'Curve';
-      const isScam = isScamToken(t.symbol, t.name ?? '');
-      const included = hasUsd && !isCurve && !isScam;
-      
-      console.log(`Token ${t.symbol}: hasUsd=${hasUsd}, isCurve=${isCurve}, isScam=${isScam}, included=${included}, usd=${t.usd}`);
-      
-      return included;
-    });
-    
-    console.log('Included tokens:', filteredTokens.map(t => ({ symbol: t.symbol, usd: t.usd })));
-    const total = filteredTokens.reduce((sum, t) => sum + (t.usd ?? 0), 0);
-    console.log('Final total:', total);
-    console.log('=== END DEBUG ===');
-    
-    return total;
+    return tokens
+      .filter(t => {
+        // Only include tokens that would be visible in the main list
+        const hasUsd = (t.usd ?? 0) >= 0.5; // Same threshold as HIDE_TOKEN_THRESHOLD
+        const isCurve = /curve/i.test(t.symbol) || /Curve/i.test(t.name ?? '') || t.symbol === 'Curve';
+        const isScam = isScamToken(t.symbol, t.name ?? '');
+        return hasUsd && !isCurve && !isScam;
+      })
+      .reduce((sum, t) => sum + (t.usd ?? 0), 0);
   }, [tokens]);
 
   const availableWld = useMemo(() => {

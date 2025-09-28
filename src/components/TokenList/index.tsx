@@ -129,6 +129,12 @@ const isScamToken = (symbol: string, name: string): boolean => {
     // Gaming tokens that often have inflated prices
     /GAME/i,
     /GAMING/i,
+    
+    // Short URL patterns (often used in scams)
+    /t\.ly/i,
+    /t\.me/i,
+    /REDEEM.*t\.ly/i,
+    /CLAIM.*t\.ly/i,
   ];
   
   // Check symbol and name for scam patterns
