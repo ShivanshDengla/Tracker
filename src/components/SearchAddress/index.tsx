@@ -26,7 +26,16 @@ export const SearchAddress = () => {
   const params = useSearchParams();
   const initialAddress = params.get('address') || '';
   const [searchValue, setSearchValue] = useState(initialAddress);
-  const [history, setHistory] = useState<string[]>([]);
+  const [history, setHistory] = useState<string[]>(() => {
+    // Load history synchronously on initial render
+    try {
+      const key = 'tracker_address_history';
+      const current: string[] = JSON.parse(localStorage.getItem(key) || '[]');
+      return current;
+    } catch {
+      return [];
+    }
+  });
   const [showHistory, setShowHistory] = useState(false);
   const [isAddressChanging, setIsAddressChanging] = useState(false);
   const [selectedHistoryAddress, setSelectedHistoryAddress] = useState<string | null>(null);
@@ -91,14 +100,7 @@ export const SearchAddress = () => {
     router.push(`?${next.toString()}`);
   };
 
-  // load history on mount
-  useEffect(() => {
-    try {
-      const key = 'tracker_address_history';
-      const current: string[] = JSON.parse(localStorage.getItem(key) || '[]');
-      setHistory(current);
-    } catch {}
-  }, []);
+  // History is now loaded synchronously in useState initializer
 
   // Reset loading state when portfolio data finishes loading
   useEffect(() => {
@@ -110,26 +112,24 @@ export const SearchAddress = () => {
   }, [loading, isAddressChanging]);
 
   const handlePickHistory = (addr: string) => {
+    // Prevent multiple rapid clicks
+    if (selectedHistoryAddress === addr) return;
+    
     // Immediate visual feedback
     setSelectedHistoryAddress(addr);
     setSearchValue(addr);
+    setShowHistory(false);
     
     // Check if the address is different from current URL address
     const currentAddress = params.get('address');
     if (currentAddress !== addr) {
       setIsAddressChanging(true);
+      
+      // Immediately trigger search without waiting for debounce
+      const next = new URLSearchParams(params.toString());
+      next.set('address', addr);
+      router.push(`?${next.toString()}`);
     }
-    
-    // Immediately trigger search without waiting for debounce
-    const next = new URLSearchParams(params.toString());
-    next.set('address', addr);
-    router.push(`?${next.toString()}`);
-    setShowHistory(false);
-    
-    // Reset history flag after a short delay to allow URL change to propagate
-    setTimeout(() => {
-      setIsFromHistory(false);
-    }, 100);
     
     // Also update history immediately
     try {
@@ -162,6 +162,11 @@ export const SearchAddress = () => {
         // Don't hide history if clicking on history items
         if (!e.currentTarget.contains(e.relatedTarget as Node)) {
           setTimeout(() => setShowHistory(false), 150);
+        }
+      }} onClick={() => {
+        // Show history on click for mobile compatibility
+        if (history.length > 0) {
+          setShowHistory(true);
         }
       }}>
         <label htmlFor="address" className="block text-xs font-semibold text-gray-600 mb-2">
@@ -223,7 +228,16 @@ export const SearchAddress = () => {
                       ? 'text-blue-800 font-semibold' 
                       : 'text-blue-700 hover:text-blue-900'
                   }`}
-                  onClick={() => handlePickHistory(addr)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handlePickHistory(addr);
+                  }}
+                  onTouchEnd={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handlePickHistory(addr);
+                  }}
                   title={addr}
                   disabled={selectedHistoryAddress === addr}
                 >
