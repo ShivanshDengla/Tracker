@@ -67,9 +67,33 @@ export function HealthScore() {
               <button
                 type="button"
                 onClick={openPoolTogether}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-purple-600 text-white px-6 py-4 text-base font-semibold shadow-lg hover:bg-purple-700 transition-all duration-200 transform hover:scale-105 border-2 border-purple-700"
+                style={{
+                  width: '100%',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  borderRadius: '12px',
+                  backgroundColor: '#9333ea',
+                  color: 'white',
+                  padding: '16px 24px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  border: '2px solid #7c3aed',
+                  boxShadow: '0 10px 15px -3px rgba(147, 51, 234, 0.3), 0 4px 6px -2px rgba(147, 51, 234, 0.1)',
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#7c3aed';
+                  e.currentTarget.style.transform = 'scale(1.02)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#9333ea';
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
               >
-                🎯 Deposit WLD in PoolTogether
+                Deposit WLD in PoolTogether
               </button>
             </section>
           )}
@@ -93,9 +117,33 @@ export function HealthScore() {
               <button
                 type="button"
                 onClick={openUno}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 text-white px-6 py-4 text-base font-semibold shadow-lg hover:bg-blue-700 transition-all duration-200 transform hover:scale-105 border-2 border-blue-700"
+                style={{
+                  width: '100%',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  borderRadius: '12px',
+                  backgroundColor: '#2563eb',
+                  color: 'white',
+                  padding: '16px 24px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  border: '2px solid #1d4ed8',
+                  boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.3), 0 4px 6px -2px rgba(37, 99, 235, 0.1)',
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#1d4ed8';
+                  e.currentTarget.style.transform = 'scale(1.02)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#2563eb';
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
               >
-                💱 Swap with UNO
+                Swap with UNO
               </button>
             </section>
           )}
@@ -118,9 +166,33 @@ export function HealthScore() {
             <button
               type="button"
               onClick={openAddMoney}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-green-600 text-white px-6 py-4 text-base font-semibold shadow-lg hover:bg-green-700 transition-all duration-200 transform hover:scale-105 border-2 border-green-700"
+              style={{
+                width: '100%',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                borderRadius: '12px',
+                backgroundColor: '#16a34a',
+                color: 'white',
+                padding: '16px 24px',
+                fontSize: '16px',
+                fontWeight: '600',
+                border: '2px solid #15803d',
+                boxShadow: '0 10px 15px -3px rgba(22, 163, 74, 0.3), 0 4px 6px -2px rgba(22, 163, 74, 0.1)',
+                transition: 'all 0.2s ease',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#15803d';
+                e.currentTarget.style.transform = 'scale(1.02)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#16a34a';
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
             >
-              💰 Add Money to Wallet
+              Add Money to Wallet
             </button>
           </section>
         </>
