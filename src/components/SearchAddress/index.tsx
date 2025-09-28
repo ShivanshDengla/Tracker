@@ -49,7 +49,7 @@ export const SearchAddress = () => {
   }, [initialAddress]);
 
   useEffect(() => {
-    if (!debouncedValue || !isValidAddress || isFromHistory) return;
+    if (!debouncedValue || !isValidAddress) return;
     
     // Check if the address is different from current URL address
     const currentAddress = params.get('address');
@@ -60,17 +60,20 @@ export const SearchAddress = () => {
     const next = new URLSearchParams(params.toString());
     next.set('address', debouncedValue);
     router.push(`?${next.toString()}`);
-    // persist to history
-    try {
-      const key = 'tracker_address_history';
-      const current: string[] = JSON.parse(localStorage.getItem(key) || '[]');
-      const addr = debouncedValue.trim();
-      if (ADDRESS_REGEX.test(addr)) {
-        const updated = [addr, ...current.filter(a => a.toLowerCase() !== addr.toLowerCase())].slice(0, 10);
-        localStorage.setItem(key, JSON.stringify(updated));
-        setHistory(updated);
-      }
-    } catch {}
+    
+    // Only persist to history if not from history selection
+    if (!isFromHistory) {
+      try {
+        const key = 'tracker_address_history';
+        const current: string[] = JSON.parse(localStorage.getItem(key) || '[]');
+        const addr = debouncedValue.trim();
+        if (ADDRESS_REGEX.test(addr)) {
+          const updated = [addr, ...current.filter(a => a.toLowerCase() !== addr.toLowerCase())].slice(0, 10);
+          localStorage.setItem(key, JSON.stringify(updated));
+          setHistory(updated);
+        }
+      } catch {}
+    }
   }, [debouncedValue, router, params, isValidAddress, isFromHistory]);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -110,7 +113,6 @@ export const SearchAddress = () => {
     // Immediate visual feedback
     setSelectedHistoryAddress(addr);
     setSearchValue(addr);
-    setIsFromHistory(true); // Mark as coming from history to prevent debounced effect
     
     // Check if the address is different from current URL address
     const currentAddress = params.get('address');
@@ -123,6 +125,11 @@ export const SearchAddress = () => {
     next.set('address', addr);
     router.push(`?${next.toString()}`);
     setShowHistory(false);
+    
+    // Reset history flag after a short delay to allow URL change to propagate
+    setTimeout(() => {
+      setIsFromHistory(false);
+    }, 100);
     
     // Also update history immediately
     try {

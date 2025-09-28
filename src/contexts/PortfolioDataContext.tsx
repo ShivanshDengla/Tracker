@@ -450,14 +450,20 @@ export function PortfolioDataProvider({ children }: { children: React.ReactNode 
             .sort((a, b) => b.amount - a.amount)
             .slice(0, 20);
           
-          const requests: TokenAddressRequest[] = top.map(t => ({ network: cfg.network, address: t.address }));
+          // Filter out scam tokens before making price API calls
+          const legitimateTokens = result.filter(token => !isScamToken(token.symbol, token.name));
+          
+          const requests: TokenAddressRequest[] = top
+            .filter(t => legitimateTokens.some(lt => lt.address.toLowerCase() === t.address.toLowerCase()))
+            .map(t => ({ network: cfg.network, address: t.address }));
+          
           if (requests.length > 0) {
             try {
               const priceResp = await alchemy.prices.getTokenPriceByAddress(requests);
               priceResp?.data?.forEach((row) => {
                 const token = result.find(t => t.address.toLowerCase() === row.address.toLowerCase());
                 const valueStr = row.prices?.[0]?.value;
-                if (token && valueStr) {
+                if (token && valueStr && !isScamToken(token.symbol, token.name)) {
                   const price = Number(valueStr);
                   token.usd = price * token.amount;
                 }
@@ -465,9 +471,9 @@ export function PortfolioDataProvider({ children }: { children: React.ReactNode 
             } catch {}
           }
 
-          // Derive prices for legitimate tokens only (exclude scam tokens)
+          // Set scam tokens to $0 and derive prices for legitimate tokens only
           for (const token of result) {
-            // Skip scam tokens - don't assign any USD value
+            // Set scam tokens to $0
             if (isScamToken(token.symbol, token.name)) {
               token.usd = 0; // Explicitly set to 0
               continue;
